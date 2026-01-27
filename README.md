@@ -282,20 +282,6 @@ SimplyDone/
 5. Run the test suite
 6. Submit a pull request
 
-## 📋 Roadmap
-
-### Version 1.1 (Planned)
-- [ ] Authentication and authorization
-- [ ] Job dependencies and workflows
-- [ ] Distributed job execution
-- [ ] Advanced scheduling (cron expressions)
-
-### Version 1.2 (Future)
-- [ ] Web dashboard
-- [ ] Job templates
-- [ ] Bulk job operations
-- [ ] Integration with external systems
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -316,5 +302,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **SimplyDone** - Making job scheduling simple and reliable 🚀
-
-Built with ❤️ by the SimplyDone Team

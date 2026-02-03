@@ -289,8 +289,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🤝 Support
 
 - **Documentation**: [Complete Setup Guide](SETUP_GUIDE.md)
-- **Issues**: [GitHub Issues](https://github.com/your-repo/simplydone/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-repo/simplydone/discussions)
+- **Issues**: [GitHub Issues](https://github.com/learnerview/simplydone/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/learnerview/simplydone/discussions)
 
 ## 🙏 Acknowledgments
 

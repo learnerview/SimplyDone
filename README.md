@@ -1,6 +1,6 @@
 # SimplyDone - Priority Job Scheduler
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/your-repo/simplydone)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/learnerview/simplydone)
 [![Java Version](https://img.shields.io/badge/java-17+-orange.svg)](https://openjdk.java.net/)
 [![Spring Boot](https://img.shields.io/badge/spring%20boot-3.2.1-green.svg)](https://spring.io/projects/spring-boot)
 [![Redis](https://img.shields.io/badge/redis-6.0+-red.svg)](https://redis.io/)
@@ -54,7 +54,7 @@ A priority job scheduling system built with Spring Boot and Redis, featuring int
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-repo/simplydone.git
+   git clone https://github.com/learnerview/simplydone.git
    cd simplydone
    ```
 
@@ -267,6 +267,8 @@ SimplyDone/
 │   ├── service/            # Business logic
 │   ├── repository/         # Data access layer
 │   ├── model/              # Domain models
+│   ├── dto/                # Data transfer objects
+│   ├── exception/          # Custom exceptions
 │   ├── config/             # Configuration classes
 │   └── worker/             # Background workers
 ├── src/test/               # Test classes
@@ -290,8 +292,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Documentation**: [Complete Setup Guide](SETUP_GUIDE.md)
 - **Issues**: [GitHub Issues](https://github.com/learnerview/simplydone/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/learnerview/simplydone/discussions)
-
 ## 🙏 Acknowledgments
 
 - [Spring Boot](https://spring.io/projects/spring-boot) - Application framework

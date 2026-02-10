@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: simplydone-app
+    env: docker
+    plan: free
+    healthCheckPath: /api/jobs/health
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: DATABASE_URL
+        fromDatabase:
+          name: simplydone-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: simplydone-cache
+          property: connectionString
+      - key: JAVA_TOOL_OPTIONS
+        value: -Xmx384m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=200
+
+databases:
+  - name: simplydone-db
+    plan: free
+    databaseName: simplydone
+    user: simplydone
+
+redis:
+  - name: simplydone-cache
+    plan: free
+    maxmemoryPolicy: allkeys-lru

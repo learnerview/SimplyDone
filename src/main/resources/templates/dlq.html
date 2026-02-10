@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{fragments/head :: head}" th:with="title='Dead Letter Queue — SimplyDone'" />
+<body>
+    <th:block th:replace="~{fragments/sidebar}" th:with="active='dlq'" />
+    <div class="main">
+        <h1 class="page-title">Dead Letter Queue</h1>
+
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Priority</th>
+                        <th>Retries Used</th>
+                        <th>Result</th>
+                        <th>Failed At</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="job : ${dlqJobs}">
+                        <td><span class="copy-id" th:onclick="'copyId(\'' + ${job.id} + '\')'" th:title="${job.id}">
+                            <code th:text="${#strings.abbreviate(job.id, 11)}">abc...</code></span></td>
+                        <td th:text="${job.jobType}">echo</td>
+                        <td th:text="${job.priority}">NORMAL</td>
+                        <td th:text="${job.attemptCount} + '/' + ${job.maxRetries}">3/3</td>
+                        <td><code th:text="${#strings.abbreviate(job.result ?: '—', 50)}">error msg</code></td>
+                        <td th:text="${job.completedAt}">—</td>
+                        <td><button class="btn btn-primary btn-sm" th:onclick="'retryDlqJob(\'' + ${job.id} + '\')'">Retry</button></td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(dlqJobs)}">
+                        <td colspan="7" class="empty">No dead-lettered jobs</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="result-box" class="result-box"></div>
+    </div>
+    <div id="toast-container" class="toast-container"></div>
+    <script th:src="@{/js/app.js}"></script>
+</body>
+</html>

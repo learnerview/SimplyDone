@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{fragments/head :: head}" th:with="title='Jobs — SimplyDone'" />
+<body>
+    <th:block th:replace="~{fragments/sidebar}" th:with="active='jobs'" />
+    <div class="main">
+        <h1 class="page-title">Jobs</h1>
+
+        <div class="card">
+            <h3>Submit Job</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="jobType">Job Type</label>
+                    <select id="jobType" onchange="updatePayloadTemplate(this.value)">
+                        <option th:each="h : ${handlers}" th:value="${h.jobType}" th:text="${h.jobType}">echo</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="priority">Priority</label>
+                    <select id="priority">
+                        <option value="HIGH">HIGH</option>
+                        <option value="NORMAL" selected>NORMAL</option>
+                        <option value="LOW">LOW</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="userId">User ID</label>
+                    <input type="text" id="userId" placeholder="anonymous" value="anonymous">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="payload">Payload (JSON)</label>
+                <textarea id="payload">{"message": "hello world"}</textarea>
+                <small id="payload-hint" style="color: var(--text-muted); display: block; margin-top: .4rem;"></small>
+            </div>
+            <button class="btn btn-primary" onclick="submitJob()">Submit Job</button>
+        </div>
+
+        <div class="card" style="margin-top: 1.5rem;">
+            <h3>Submit Workflow (DAG)</h3>
+            <div class="form-group">
+                <label for="workflowJson">Workflow JSON</label>
+                <textarea id="workflowJson">{
+  "userId": "anonymous",
+  "jobs": [
+    {"id": "A", "jobType": "echo", "payload": {"step": "A"}},
+    {"id": "B", "jobType": "echo", "payload": {"step": "B"}, "dependsOn": ["A"]},
+    {"id": "C", "jobType": "echo", "payload": {"step": "C"}, "dependsOn": ["A"]},
+    {"id": "D", "jobType": "echo", "payload": {"step": "D"}, "dependsOn": ["B", "C"]}
+  ]
+}</textarea>
+            </div>
+            <button class="btn btn-primary" onclick="submitWorkflow()">Submit Workflow</button>
+        </div>
+
+        <div class="card" style="margin-top: 1.5rem;">
+            <div class="section-header">
+                <h3>Job List</h3>
+                <button class="live-toggle" onclick="toggleLive()">
+                    <span class="dot dot-xs dot-green"></span>
+                    <span>Live</span>
+                </button>
+            </div>
+            <div class="toolbar">
+                <select id="filter-status" onchange="applyFilters()">
+                    <option value="">All Statuses</option>
+                    <option value="queued">QUEUED</option>
+                    <option value="running">RUNNING</option>
+                    <option value="success">SUCCESS</option>
+                    <option value="failed">FAILED</option>
+                    <option value="dlq">DLQ</option>
+                </select>
+                <select id="filter-priority" onchange="applyFilters()">
+                    <option value="">All Priorities</option>
+                    <option value="high">HIGH</option>
+                    <option value="normal">NORMAL</option>
+                    <option value="low">LOW</option>
+                </select>
+                <input type="text" id="filter-search" placeholder="Search type or ID…">
+                <div class="toolbar-actions">
+                    <button class="btn btn-success btn-sm" onclick="exportCsv()">Export CSV</button>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Retries</th>
+                        <th>Created</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody id="jobs-tbody">
+                    <tr th:each="job : ${recentJobs}">
+                        <td><code th:text="${#strings.abbreviate(job.id, 11)}">abc...</code></td>
+                        <td th:text="${job.jobType}">echo</td>
+                        <td><span class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(job.status)}" th:text="${job.status}">QUEUED</span></td>
+                        <td th:text="${job.priority}">NORMAL</td>
+                        <td th:text="${job.attemptCount == 0 ? '—' : job.attemptCount + ' / ' + job.maxRetries}">—</td>
+                        <td th:text="${job.createdAt}">—</td>
+                        <td th:text="${job.result ?: '—'}">—</td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(recentJobs)}">
+                        <td colspan="7" class="empty">No jobs yet</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div id="toast-container" class="toast-container"></div>
+    <script th:src="@{/js/app.js}"></script>
+</body>
+</html>

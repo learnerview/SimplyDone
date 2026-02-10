@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{fragments/head :: head}" th:with="title='Dashboard — SimplyDone'" />
+<body>
+    <th:block th:replace="~{fragments/sidebar}" th:with="active='dashboard'" />
+    <div class="main">
+        <h1 class="page-title">Dashboard</h1>
+
+        <div class="grid grid-4">
+            <div class="card">
+                <h3>High Queue</h3>
+                <div class="value" id="stat-high" th:text="${stats.highQueueSize}">0</div>
+            </div>
+            <div class="card">
+                <h3>Normal Queue</h3>
+                <div class="value" id="stat-normal" th:text="${stats.normalQueueSize}">0</div>
+            </div>
+            <div class="card">
+                <h3>Low Queue</h3>
+                <div class="value" id="stat-low" th:text="${stats.lowQueueSize}">0</div>
+            </div>
+            <div class="card">
+                <h3>DLQ</h3>
+                <div class="value" id="stat-dlq" th:text="${stats.totalDlq}">0</div>
+            </div>
+        </div>
+
+        <div class="grid grid-4" style="margin-top: 1rem;">
+            <div class="card">
+                <h3>Queued</h3>
+                <div class="value" id="stat-queued" th:text="${stats.totalQueued}">0</div>
+            </div>
+            <div class="card">
+                <h3>Running</h3>
+                <div class="value" id="stat-running" th:text="${stats.totalRunning}">0</div>
+            </div>
+            <div class="card">
+                <h3>Success</h3>
+                <div class="value" id="stat-success" th:text="${stats.totalSuccess}">0</div>
+            </div>
+            <div class="card">
+                <h3>Failed</h3>
+                <div class="value" id="stat-failed" th:text="${stats.totalFailed}">0</div>
+            </div>
+        </div>
+
+        <div class="grid grid-4" style="margin-top: 1rem;">
+            <div class="card">
+                <h3>Success Rate</h3>
+                <div class="value-sm" id="stat-success-rate">—</div>
+            </div>
+            <div class="card">
+                <h3>Retry Rate</h3>
+                <div class="value-sm" id="stat-retry-rate">—</div>
+            </div>
+            <div class="card">
+                <h3>Throughput</h3>
+                <div class="value-sm" id="stat-throughput">—</div>
+            </div>
+            <div class="card">
+                <h3>Avg Latency</h3>
+                <div class="value-sm" id="stat-latency">—</div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 1.5rem;">
+            <div class="section-header">
+                <h3>Recent Jobs</h3>
+                <button class="live-toggle" onclick="toggleLive()">
+                    <span class="dot dot-xs dot-green"></span>
+                    <span>Live</span>
+                </button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Retries</th>
+                        <th>Created</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody id="jobs-tbody">
+                    <tr th:each="job : ${recentJobs}">
+                        <td><code th:text="${#strings.abbreviate(job.id, 11)}">abc...</code></td>
+                        <td th:text="${job.jobType}">echo</td>
+                        <td><span class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(job.status)}" th:text="${job.status}">QUEUED</span></td>
+                        <td th:text="${job.priority}">NORMAL</td>
+                        <td th:text="${job.attemptCount == 0 ? '—' : job.attemptCount + ' / ' + job.maxRetries}">—</td>
+                        <td th:text="${job.createdAt}">—</td>
+                        <td th:text="${job.result ?: '—'}">—</td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(recentJobs)}">
+                        <td colspan="7" class="empty">No jobs yet</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card" style="margin-top: 1.5rem;">
+            <h3>Registered Handlers</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Class</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="h : ${handlers}">
+                        <td><code th:text="${h.jobType}">echo</code></td>
+                        <td th:text="${h.description}">—</td>
+                        <td><code th:text="${h.handlerClass}">EchoJobHandler</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div id="toast-container" class="toast-container"></div>
+    <script th:src="@{/js/app.js}"></script>
+</body>
+</html>

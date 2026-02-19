@@ -21,7 +21,11 @@ services:
   - type: redis
     name: simplydone-cache
     plan: free
+    ipAllowList:
+      - source: 10.0.0.0/8  # Render internal network
 
 databases:
   - name: simplydone-db
     plan: free
+    ipAllowList:
+      - source: 10.0.0.0/8  # Render internal network

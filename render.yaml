@@ -18,10 +18,10 @@ services:
           property: connectionString
       - fromGroup: simplydone-secrets
 
-databases:
-  - name: simplydone-db
+  - type: redis
+    name: simplydone-cache
     plan: free
 
-redis:
-  - name: simplydone-cache
+databases:
+  - name: simplydone-db
     plan: free

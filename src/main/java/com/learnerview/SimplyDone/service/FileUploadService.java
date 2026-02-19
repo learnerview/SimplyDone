@@ -16,6 +16,9 @@ public interface FileUploadService {
     // delete a file by its id
     void deleteFile(String fileId);
 
+    // list all uploaded files with their metadata
+    java.util.List<Map<String, Object>> listFiles();
+
     // domain result for file downloads - no framework dependency
     record FileDownloadResult(byte[] content, String fileName, String contentType) {}
 }

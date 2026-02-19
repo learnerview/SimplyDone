@@ -26,6 +26,12 @@ const UI = {
     },
 
     showToast(message, type = 'info') {
+        // Delegate to Toast manager if available (toast.js loaded)
+        if (window.Toast && typeof Toast.show === 'function') {
+            Toast.show(message, type);
+            return;
+        }
+
         if (!this.toastContainer) this.initToasts();
 
         const toast = document.createElement('div');
@@ -56,6 +62,13 @@ const UI = {
         }, 4000);
     },
 
+    renderEmptyState(message, cols = 1) {
+        return `<div class="glass-card" style="text-align: center; padding: 2rem; opacity: 0.6;">
+            <i data-lucide="inbox" style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem;"></i>
+            <p class="text-sm text-secondary">${message}</p>
+        </div>`;
+    },
+
     // renders a colored badge based on job status like PENDING/EXECUTED/FAILED
     renderStatusBadge(status) {
         const colors = {
@@ -68,6 +81,16 @@ const UI = {
         };
         const style = colors[status] || 'background: #71717a22; color: #a1a1aa;';
         return `<span class="badge" style="${style}">${status}</span>`;
+    },
+
+    toggleJobFields(jobType) {
+        document.querySelectorAll('.job-params-section').forEach(section => {
+            section.classList.add('hidden');
+        });
+        const activeSection = document.getElementById(`params-${jobType}`);
+        if (activeSection) {
+            activeSection.classList.remove('hidden');
+        }
     }
 };
 

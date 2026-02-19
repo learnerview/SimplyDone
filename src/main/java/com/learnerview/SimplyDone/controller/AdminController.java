@@ -127,4 +127,17 @@ public class AdminController {
         log.debug("Jobs retrieved for user: {} - {} total", userId, userJobs.get("totalJobs"));
         return ResponseEntity.ok(ApiResponse.success(userJobs, "User jobs retrieved"));
     }
+
+    @DeleteMapping("/jobs/{priority}/{jobId}")
+    public ResponseEntity<ApiResponse<String>> cancelJob(
+            @PathVariable String priority,
+            @PathVariable String jobId) {
+        JobPriority jobPriority = JobPriority.valueOf(priority.toUpperCase());
+        boolean success = adminService.cancelJob(jobId, jobPriority);
+        if (success) {
+            return ResponseEntity.ok(ApiResponse.success("Job cancelled successfully"));
+        } else {
+            return ResponseEntity.status(404).body(ApiResponse.error(404, "RESOURCE_NOT_FOUND", "Job not found in " + priority + " queue"));
+        }
+    }
 }

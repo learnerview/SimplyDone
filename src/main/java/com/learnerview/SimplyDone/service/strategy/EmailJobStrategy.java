@@ -34,12 +34,14 @@ public class EmailJobStrategy implements JobExecutionStrategy {
         String to = (String) params.get("to");
         String subject = (String) params.get("subject");
         String body = (String) params.get("body");
+        String senderEmail = (String) params.get("senderEmail");
+        String senderPassword = (String) params.get("senderPassword");
         
         try {
-            Map<String, Object> result = smtpEmailService.sendEmail(to, subject, body);
+            Map<String, Object> result = smtpEmailService.sendEmail(to, subject, body, senderEmail, senderPassword);
             
             if (Boolean.TRUE.equals(result.get("success"))) {
-                log.info("Email sent successfully to: {} for job: {}", to, job.getId());
+                log.info("Email sent successfully to: {} (from: {}) for job: {}", to, result.get("from"), job.getId());
             } else {
                 String message = (String) result.getOrDefault("message", "Unknown error");
                 throw new Exception("Email sending failed: " + message);

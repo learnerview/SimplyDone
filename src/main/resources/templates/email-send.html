@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" data-theme="light" xmlns:th="http://www.thymeleaf.org">
 
 <head th:replace="~{fragments/head :: head}"></head>
 
@@ -125,6 +125,7 @@
             const formData = {
                 jobType: 'EMAIL_SEND',
                 userId: document.getElementById('userId').value,
+                message: 'Email to ' + document.getElementById('emailTo').value,
                 priority: document.getElementById('priority').value,
                 parameters: {
                     to: document.getElementById('emailTo').value,
@@ -141,10 +142,10 @@
                 lucide.createIcons();
 
                 await API.submitJob(formData);
-                Toast.success('📧 Email job successfully queued!');
+                UI.showToast('Email job successfully queued!', 'success');
                 e.target.reset();
             } catch (error) {
-                Toast.error(`❌ ${error.message}`);
+                UI.showToast(error.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.classList.remove('animate-pulse');

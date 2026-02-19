@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/head :: head}"></head>
+
+<body>
+    <div class="main-layout">
+        <nav th:replace="~{fragments/sidebar :: sidebar}"></nav>
+
+        <main class="main-content">
+            <header class="navbar glass-border-b">
+                <div class="breadcrumb">
+                    <span class="text-secondary">System</span>
+                    <span class="mx-2">/</span>
+                    <span class="font-bold">Diagnostics</span>
+                </div>
+                <div class="header-actions">
+                    <div class="glass-pill status-pill">
+                        <span class="status-indicator online pulsing"></span>
+                        <span>Monitoring Active</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="p-8">
+                <div class="section-header mb-8">
+                    <h2>System Diagnostics</h2>
+                    <p>Real-time health, performance metrics, and plugin status.</p>
+                </div>
+
+                <div class="dashboard-grid stagger-children">
+                    <!-- Global Health -->
+                    <div class="stat-card glass pointer-events-none">
+                        <div class="stat-icon-wrapper success">
+                            <i data-lucide="shield-check"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">System Health</span>
+                            <h2 id="healthStatus" class="stat-value">OK</h2>
+                        </div>
+                    </div>
+
+                    <!-- Redis Latency -->
+                    <div class="stat-card glass pointer-events-none">
+                        <div class="stat-icon-wrapper brand">
+                            <i data-lucide="zap"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Cache Latency</span>
+                            <h2 id="cacheLatency" class="stat-value">0ms</h2>
+                        </div>
+                    </div>
+
+                    <!-- Worker Load -->
+                    <div class="stat-card glass pointer-events-none">
+                        <div class="stat-icon-wrapper warning">
+                            <i data-lucide="cpu"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Worker Load</span>
+                            <h2 id="workerLoad" class="stat-value">Low</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-split-grid mt-8">
+                    <!-- Plugin Status -->
+                    <section>
+                        <div class="glass-card">
+                            <div class="card-title mb-6">
+                                <i data-lucide="plug"></i>
+                                <span>Engine Capabilities</span>
+                            </div>
+                            <div id="pluginInfo" class="space-y-4">
+                                <!-- Loading -->
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Metrics -->
+                    <section class="space-y-6">
+                        <div class="glass-card">
+                            <div class="card-title mb-6">
+                                <i data-lucide="bar-chart-3"></i>
+                                <span>Throughput Metrics</span>
+                            </div>
+                            <div id="metricsContent" class="space-y-4">
+                                <!-- Loading -->
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script th:src="@{/js/modules/api.js}"></script>
+    <script th:src="@{/js/modules/theme.js}"></script>
+    <script th:src="@{/js/modules/ui.js}"></script>
+    <script th:src="@{/js/modules/toast.js}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            lucide.createIcons();
+            fetchDiagnostics();
+            setInterval(fetchDiagnostics, 5000);
+        });
+
+        async function fetchDiagnostics() {
+            try {
+                // Fetch Plugin Info
+                const pluginRes = await fetch('/api/plugin/status');
+                const pluginData = await pluginRes.json();
+
+                // Fetch Detailed Health
+                const healthRes = await fetch('/api/plugin/health/detailed');
+                const healthData = await healthRes.json();
+
+                updateUI(pluginData, healthData);
+            } catch (error) {
+                console.error('Diagnostics fetch failed', error);
+            }
+        }
+
+        function updateUI(plugin, health) {
+            document.getElementById('healthStatus').textContent = health.status;
+            document.getElementById('cacheLatency').textContent = health.components?.cache?.details?.latency || '0ms';
+
+            const pluginContainer = document.getElementById('pluginInfo');
+            pluginContainer.innerHTML = `
+                <div class="p-4 glass-pill flex items-center justify-between">
+                    <span>Engine Version</span>
+                    <span class="text-brand-400 font-mono">${plugin.version}</span>
+                </div>
+                <div class="p-4 glass-pill">
+                    <div class="text-xs uppercase text-tertiary mb-2">Enabled Strategies</div>
+                    <div class="flex flex-wrap gap-2">
+                        ${plugin.capabilities.map(cap => `<span class="badge badge-success text-xs">${cap}</span>`).join('')}
+                    </div>
+                </div>
+            `;
+
+            const metricsContainer = document.getElementById('metricsContent');
+            metricsContainer.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-secondary">Database Connection</span>
+                        <span class="text-success">${health.components?.database?.status}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-secondary">Redis Cluster</span>
+                        <span class="text-success">${health.components?.cache?.status}</span>
+                    </div>
+                </div>
+            `;
+
+            lucide.createIcons();
+        }
+    </script>
+</body>
+
+</html>

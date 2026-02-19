@@ -90,45 +90,41 @@
 
 :root[data-theme="dark"] {
     /* Dark Theme - Deep Space Aesthetic */
-    --bg-base: #000000;
-    --bg-color: var(--zinc-950);
-    --bg-elevated: var(--zinc-900);
+    --bg-base: #020202;
+    --bg-color: #050505;
+    --bg-elevated: #0a0a0c;
     
-    --surface-color: rgba(24, 24, 27, 0.6);
-    --surface-hover: rgba(24, 24, 27, 0.85);
-    --surface-active: rgba(39, 39, 42, 0.95);
+    --surface-color: rgba(9, 9, 11, 0.4);
+    --surface-hover: rgba(15, 15, 18, 0.6);
+    --surface-active: rgba(20, 20, 25, 0.8);
     
-    --text-primary: var(--zinc-50);
-    --text-secondary: var(--zinc-400);
-    --text-tertiary: var(--zinc-500);
-    --text-inverse: var(--zinc-900);
+    --text-primary: #ffffff;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #52525b;
+    --text-inverse: #000000;
     
-    --border-color: rgba(255, 255, 255, 0.08);
-    --border-hover: rgba(255, 255, 255, 0.15);
-    --border-focus: rgba(99, 102, 241, 0.5);
+    --border-color: rgba(255, 255, 255, 0.05);
+    --border-hover: rgba(255, 255, 255, 0.1);
+    --border-focus: rgba(99, 102, 241, 0.6);
     
-    --glass-tint: rgba(255, 255, 255, 0.03);
-    --glass-strong: rgba(24, 24, 27, 0.85);
+    --glass-tint: rgba(255, 255, 255, 0.02);
+    --glass-strong: rgba(10, 10, 12, 0.9);
     
-    --accent-glow: rgba(99, 102, 241, 0.25);
-    --accent-glow-strong: rgba(99, 102, 241, 0.4);
+    --accent-glow: rgba(99, 102, 241, 0.15);
+    --accent-glow-strong: rgba(99, 102, 241, 0.3);
     
-    /* Enhanced Shadows for Dark Mode */
-    --card-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 
-                   0 10px 10px -5px rgba(0, 0, 0, 0.4),
-                   0 0 0 1px rgba(255, 255, 255, 0.05);
-    --card-shadow-hover: 0 30px 40px -10px rgba(0, 0, 0, 0.7),
-                         0 15px 20px -10px rgba(0, 0, 0, 0.5),
-                         0 0 0 1px rgba(255, 255, 255, 0.1);
+    --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8),
+                   0 0 0 1px rgba(255, 255, 255, 0.03);
+    --card-shadow-hover: 0 12px 48px 0 rgba(0, 0, 0, 0.9),
+                         0 0 0 1px rgba(255, 255, 255, 0.08);
 
-    /* Gradient Overlays */
-    --gradient-primary: linear-gradient(135deg, var(--brand-600) 0%, var(--purple-600) 100%);
-    --gradient-success: linear-gradient(135deg, var(--success-500) 0%, var(--cyan-500) 100%);
-    --gradient-danger: linear-gradient(135deg, var(--danger-500) 0%, var(--warning-500) 100%);
-    --gradient-mesh: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-                     radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.1) 0px, transparent 50%),
-                     radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.1) 0px, transparent 50%),
-                     radial-gradient(at 0% 100%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);
+    --gradient-primary: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    --gradient-success: linear-gradient(135deg, #22c55e 0%, #06b6d4 100%);
+    --gradient-danger: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+    --gradient-mesh: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+                     radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.08) 0px, transparent 50%),
+                     radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
+                     radial-gradient(at 0% 100%, rgba(139, 92, 246, 0.08) 0px, transparent 50%);
 }
 
 :root[data-theme="light"] {

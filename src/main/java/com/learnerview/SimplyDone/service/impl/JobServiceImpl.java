@@ -45,8 +45,6 @@ public class JobServiceImpl implements JobService {
 
     @Override
     public JobSubmissionResponse submitJob(JobSubmissionRequest request) {
-        enforceRateLimit(request.getUserId());
-
         String jobId = UUID.randomUUID().toString();
 
         Job job = Job.builder()
@@ -86,11 +84,13 @@ public class JobServiceImpl implements JobService {
                     jobExecutor.execute(job);
                     
                     jobRepository.incrementExecutedJobsCounter();
+                    jobRepository.updateJobStatus(job); // Persist EXECUTED status
                     retryService.resetRetryAttempts(job.getId());
                     return true;
                 } catch (Exception e) {
                     log.error("Failed to execute job {}: {}", job.getId(), e.getMessage());
                     retryService.retryJob(job, e);
+                    jobRepository.updateJobStatus(job); // Persist FAILED (or retrying) status
                     return false;
                 }
             }

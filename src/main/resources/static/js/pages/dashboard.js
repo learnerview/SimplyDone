@@ -109,34 +109,51 @@ document.addEventListener('DOMContentLoaded', () => {
             const userId = document.getElementById('user-id').value;
             const jobType = document.getElementById('job-type').value;
             const priority = document.getElementById('priority').value;
-            const rawPayload = document.getElementById('payload').value;
+            const message = document.getElementById('message').value;
 
-            let parameters = {};
-            try {
-                parameters = rawPayload ? JSON.parse(rawPayload) : {};
-            } catch (err) {
-                UI.showToast('Invalid JSON in payload', 'error');
-                return;
+            // Collect parameters from the active section
+            const parameters = {};
+            const activeSection = document.getElementById(`params-${jobType}`);
+            if (activeSection) {
+                activeSection.querySelectorAll('input, select, textarea').forEach(input => {
+                    if (input.name) {
+                        const value = input.type === 'checkbox' ? input.checked : input.value;
+                        if (value !== "" && value !== null) {
+                            // Try to parse JSON if the field looks like it
+                            if (input.name === 'payload' || input.name === 'data' || input.name === 'transformRules') {
+                                try {
+                                    parameters[input.name] = JSON.parse(value);
+                                } catch (e) {
+                                    parameters[input.name] = value;
+                                }
+                            } else {
+                                parameters[input.name] = value;
+                            }
+                        }
+                    }
+                });
             }
 
-            // build the request object matching JobSubmissionRequest fields
             const data = {
                 userId: userId,
                 jobType: jobType,
                 priority: priority,
                 parameters: parameters,
-                message: `Manual submission of ${jobType}`
+                message: message || `Manual submission of ${jobType}`
             };
 
             try {
                 btn.disabled = true;
-                btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i><span>Scheduling...</span>';
-                lucide.createIcons();
+                btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i><span>Dispatching...</span>';
+                if (window.lucide) window.lucide.createIcons();
 
                 await API.submitJob(data);
-                UI.showToast('Job queued successfully', 'success');
+                UI.showToast(`${jobType} job queued!`, 'success');
 
                 e.target.reset();
+                // Reset dynamic fields visibility
+                UI.toggleJobFields(document.getElementById('job-type').value);
+
                 await updateQueues();
                 await updateStats();
             } catch (err) {
@@ -144,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalContent;
-                lucide.createIcons();
+                if (window.lucide) window.lucide.createIcons();
             }
         });
     }

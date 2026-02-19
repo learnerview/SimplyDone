@@ -188,7 +188,7 @@ try {
         Write-Host " PASS"
         $script:passedTests++
         $null = $responseBody | ConvertFrom-Json
-        Test-Endpoint -Name "List uploaded files" -Url "/api/files/list"
+        Test-Endpoint -Name "List uploaded files" -Url "/api/files"
     } else {
         Write-Host " FAIL ($($response.StatusCode))"
         $script:failedTests++

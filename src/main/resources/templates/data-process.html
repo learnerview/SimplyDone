@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" data-theme="light" xmlns:th="http://www.thymeleaf.org">
 
 <head th:replace="~{fragments/head :: head}"></head>
 
@@ -125,7 +125,7 @@
     <script>
         // Initialize file uploader
         let fileUploader;
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             fileUploader = new FileUploader({
                 allowedTypes: ['.csv', '.json', '.txt', 'text/csv', 'application/json'],
                 maxSize: 50 * 1024 * 1024, // 50MB
@@ -134,7 +134,7 @@
                     UI.showToast(`File uploaded: ${result.fileName}`, 'success');
                 }
             });
-            
+
             const container = document.getElementById('fileUploadContainer');
             container.appendChild(fileUploader.createUploadZone());
         });
@@ -147,6 +147,7 @@
             const formData = {
                 jobType: 'DATA_PROCESS',
                 userId: document.getElementById('userId').value,
+                message: 'Data processing: ' + document.getElementById('operation').value,
                 priority: document.getElementById('priority').value,
                 parameters: {
                     operation: document.getElementById('operation').value,

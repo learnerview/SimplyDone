@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" data-theme="light" xmlns:th="http://www.thymeleaf.org">
 
 <head th:replace="~{fragments/head :: head}"></head>
 
@@ -140,6 +140,7 @@
             const formData = {
                 jobType: 'API_CALL',
                 userId: document.getElementById('userId').value,
+                message: document.getElementById('method').value + ' ' + document.getElementById('url').value,
                 priority: document.getElementById('priority').value,
                 parameters: {
                     url: document.getElementById('url').value,

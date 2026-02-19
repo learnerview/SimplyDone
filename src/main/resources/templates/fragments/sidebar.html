@@ -77,6 +77,37 @@
         </ul>
     </div>
 
+    <div class="nav-section">
+        <span class="nav-label">Management</span>
+        <ul class="nav-list">
+            <li>
+                <a th:href="@{/assets}" class="nav-item" th:classappend="${currentPage == 'assets'} ? 'active' : ''">
+                    <i data-lucide="package"></i>
+                    <span>Asset Vault</span>
+                </a>
+            </li>
+            <li>
+                <a th:href="@{/system-health}" class="nav-item"
+                    th:classappend="${currentPage == 'health'} ? 'active' : ''">
+                    <i data-lucide="activity"></i>
+                    <span>Diagnostics</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="nav-section">
+        <span class="nav-label">Reliability</span>
+        <ul class="nav-list">
+            <li>
+                <a th:href="@{/dlq}" class="nav-item" th:classappend="${currentPage == 'dlq'} ? 'active' : ''">
+                    <i data-lucide="alert-octagon"></i>
+                    <span>Dead Letter</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
     <div class="nav-section mt-auto">
         <ul class="nav-list">
             <li>

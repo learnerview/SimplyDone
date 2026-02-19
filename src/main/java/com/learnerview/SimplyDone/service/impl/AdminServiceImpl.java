@@ -202,4 +202,13 @@ public class AdminServiceImpl implements AdminService {
     public boolean retryDeadLetterJob(String jobId) {
         return retryService.retryDeadLetterJob(jobId);
     }
+
+    @Override
+    public boolean cancelJob(String jobId, JobPriority priority) {
+        boolean deleted = jobRepository.deleteJob(jobId, priority);
+        if (deleted) {
+            log.info("Job cancelled by admin: {} from {} queue", jobId, priority);
+        }
+        return deleted;
+    }
 }

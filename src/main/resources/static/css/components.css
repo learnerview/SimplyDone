@@ -226,48 +226,27 @@
     background: var(--surface-color);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
-    padding: 1.75rem;
+    padding: 1.5rem;
     box-shadow: var(--card-shadow);
     transition: all var(--transition-base);
-    backdrop-filter: blur(var(--blur-lg));
+    backdrop-filter: blur(var(--blur-lg)) saturate(180%);
 }
 
 .card:hover {
     border-color: var(--border-hover);
+    background: var(--surface-hover);
 }
 
-.card-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin-bottom: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    color: var(--text-primary);
-}
-
-.card-title i {
-    width: 20px;
-    height: 20px;
-    color: var(--brand-500);
-}
-
-/* Stats Grid */
-.stat-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1.5rem;
-}
-
+/* Stats Dashboard Card */
 .stat-card {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
-    padding: 1.75rem;
+    gap: 1.25rem;
+    padding: 1.25rem;
     background: var(--surface-color);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
-    backdrop-filter: blur(var(--blur-lg));
+    backdrop-filter: blur(var(--blur-lg)) saturate(150%);
     box-shadow: var(--card-shadow);
     transition: all var(--transition-base);
     position: relative;
@@ -476,15 +455,19 @@ tbody tr:last-child td {
 }
 
 @keyframes pulse-glow {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
         opacity: 1;
     }
+
     50% {
         transform: scale(1.3);
         opacity: 0.7;
     }
 }
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
+
+text-transform: uppercase;
+letter-spacing: 0.025em;
 }

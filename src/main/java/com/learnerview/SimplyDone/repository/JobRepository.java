@@ -11,6 +11,7 @@ import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Repository;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +33,7 @@ public class JobRepository {
     private String executedJobsCounter;
     private String rejectedJobsCounter;
     private String deadLetterQueue;
+    private String jobStatusMap;
 
     @jakarta.annotation.PostConstruct
     public void init() {
@@ -40,6 +42,7 @@ public class JobRepository {
         executedJobsCounter = schedulerProperties.getStats().getExecuted();
         rejectedJobsCounter = schedulerProperties.getStats().getRejected();
         deadLetterQueue = schedulerProperties.getQueues().getDeadLetter();
+        jobStatusMap = schedulerProperties.getRedis().getKeyPrefix() + ":jobs:status";
     }
     
     public void saveJob(Job job) {
@@ -48,10 +51,24 @@ public class JobRepository {
         try {
             String jobJson = objectMapper.writeValueAsString(job);
             redisTemplate.opsForZSet().add(queueKey, jobJson, score);
-            log.debug("Job {} saved to {} queue", job.getId(), job.getPriority());
+            
+            // Also save to status map for lookup
+            redisTemplate.opsForHash().put(jobStatusMap, job.getId(), jobJson);
+            redisTemplate.expire(jobStatusMap, Duration.ofHours(1));
+            
+            log.debug("Job {} saved to {} queue and status map", job.getId(), job.getPriority());
         } catch (Exception e) {
             log.error("Failed to save job {} to {} queue: {}", job.getId(), job.getPriority(), e.getMessage());
             throw new RuntimeException("Failed to save job to queue: " + e.getMessage(), e);
+        }
+    }
+
+    public void updateJobStatus(Job job) {
+        try {
+            String jobJson = objectMapper.writeValueAsString(job);
+            redisTemplate.opsForHash().put(jobStatusMap, job.getId(), jobJson);
+        } catch (Exception e) {
+            log.error("Failed to update status for job {}: {}", job.getId(), e.getMessage());
         }
     }
     
@@ -167,6 +184,10 @@ public class JobRepository {
     public boolean deleteJob(String jobId) {
         return deleteJobFromQueue(jobId, highPriorityQueue) || deleteJobFromQueue(jobId, lowPriorityQueue);
     }
+
+    public boolean deleteJob(String jobId, JobPriority priority) {
+        return deleteJobFromQueue(jobId, getQueueKey(priority));
+    }
     
     private boolean deleteJobFromQueue(String jobId, String queueKey) {
         try {
@@ -187,6 +208,16 @@ public class JobRepository {
     }
     
     public Job getJobById(String jobId) {
+        try {
+            Object jobJson = redisTemplate.opsForHash().get(jobStatusMap, jobId);
+            if (jobJson != null) {
+                return objectMapper.readValue(jobJson.toString(), Job.class);
+            }
+        } catch (Exception e) {
+            log.error("Error retrieving job {} from status map: {}", jobId, e.getMessage());
+        }
+        
+        // Fallback to queue search if not in map (though it should be)
         Job job = getJobByIdFromQueue(jobId, highPriorityQueue);
         return job != null ? job : getJobByIdFromQueue(jobId, lowPriorityQueue);
     }

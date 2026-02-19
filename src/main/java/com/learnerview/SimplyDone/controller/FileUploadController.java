@@ -29,6 +29,14 @@ public class FileUploadController {
 
     private final FileUploadService fileUploadService;
 
+    // get all uploaded files
+    @GetMapping
+    public ResponseEntity<ApiResponse<?>> listFiles() {
+        var files = fileUploadService.listFiles();
+        log.info("Retrieved file list - {} files total", files.size());
+        return ResponseEntity.ok(ApiResponse.success(files, "File list retrieved successfully"));
+    }
+
     // upload a file - rejects empty files, saves via service, returns metadata
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<?>> uploadFile(@RequestParam("file") MultipartFile file) {

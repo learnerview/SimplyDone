@@ -42,4 +42,7 @@ public interface AdminService {
     List<DeadLetterJob> getDeadLetterJobs();
     int clearDeadLetterQueue();
     boolean retryDeadLetterJob(String jobId);
+
+    // cancel a single job from a specific queue
+    boolean cancelJob(String jobId, JobPriority priority);
 }

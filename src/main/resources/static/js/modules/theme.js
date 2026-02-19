@@ -5,8 +5,7 @@ const Theme = {
     CURRENT_THEME_KEY: 'simplydone-theme',
 
     init() {
-        const savedTheme = localStorage.getItem(this.CURRENT_THEME_KEY) ||
-            (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        const savedTheme = localStorage.getItem(this.CURRENT_THEME_KEY) || 'light';
         this.setTheme(savedTheme);
     },
 

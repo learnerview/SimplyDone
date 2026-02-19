@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -111,6 +112,38 @@ public class FileUploadServiceImpl implements FileUploadService {
         } catch (IOException e) {
             log.error("File delete failed for {}: {}", fileId, e.getMessage());
             throw new InternalException("Failed to delete file: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public List<Map<String, Object>> listFiles() {
+        try {
+            return Files.list(uploadDir)
+                    .map(path -> {
+                        Map<String, Object> metadata = new HashMap<>();
+                        String fileName = path.getFileName().toString();
+                        String fileId = fileName.contains(".") 
+                                ? fileName.substring(0, fileName.lastIndexOf('.')) 
+                                : fileName;
+                        
+                        try {
+                            metadata.put("fileId", fileId);
+                            metadata.put("storedName", fileName);
+                            metadata.put("size", Files.size(path));
+                            metadata.put("lastModified", Files.getLastModifiedTime(path).toMillis());
+                            metadata.put("filePath", "/api/files/download/" + fileId);
+                            // We don't store original name separately in this simple impl, 
+                            // so we use storedName as a fallback or could store in a sidecar file/DB
+                            metadata.put("originalName", fileName); 
+                        } catch (IOException e) {
+                            log.error("Failed to read metadata for file: {}", fileName);
+                        }
+                        return metadata;
+                    })
+                    .toList();
+        } catch (IOException e) {
+            log.error("Failed to list files in {}: {}", uploadDir, e.getMessage());
+            throw new InternalException("Failed to list files: " + e.getMessage(), e);
         }
     }
 }

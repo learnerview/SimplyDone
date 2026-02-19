@@ -13,21 +13,20 @@ class FileUploader {
             onUploadError: options.onUploadError || (() => {}),
             autoPopulateField: options.autoPopulateField || null
         };
-        
+
         this.files = [];
-        this.init();
+        this.zone = null;
+        this.zoneEl = null;
+        this.inputEl = null;
+        this.progressBar = null;
+        this.fileListEl = null;
     }
-    
-    init() {
-        this.createUploadZone();
-        this.attachEventListeners();
-    }
-    
+
     createUploadZone() {
         const zone = document.createElement('div');
         zone.className = 'file-upload';
         zone.innerHTML = `
-            <div class="file-upload-zone" id="uploadZone">
+            <div class="file-upload-zone">
                 <svg class="file-upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="17 8 12 3 7 8"></polyline>
@@ -35,45 +34,52 @@ class FileUploader {
                 </svg>
                 <div class="file-upload-text">Drag & drop files here or click to browse</div>
                 <div class="file-upload-hint">Maximum file size: ${this.formatBytes(this.options.maxSize)}</div>
-                <input type="file" class="file-upload-input" id="fileInput" 
+                <input type="file" class="file-upload-input"
                        ${this.options.multiple ? 'multiple' : ''}
                        accept="${this.options.allowedTypes.join(',')}" />
                 <div class="file-upload-progress">
-                    <div class="file-upload-progress-bar" id="progressBar"></div>
+                    <div class="file-upload-progress-bar"></div>
                 </div>
             </div>
-            <div class="file-upload-list" id="fileList"></div>
+            <div class="file-upload-list"></div>
         `;
-        
+
+        this.zone = zone;
+        this.zoneEl = zone.querySelector('.file-upload-zone');
+        this.inputEl = zone.querySelector('.file-upload-input');
+        this.progressBar = zone.querySelector('.file-upload-progress-bar');
+        this.fileListEl = zone.querySelector('.file-upload-list');
+
+        this.attachEventListeners();
         return zone;
     }
-    
+
     attachEventListeners() {
-        const zone = document.getElementById('uploadZone');
-        const input = document.getElementById('fileInput');
-        
+        const zone = this.zoneEl;
+        const input = this.inputEl;
+
         // Click to browse
         zone.addEventListener('click', (e) => {
             if (!e.target.closest('.file-upload-item-remove')) {
                 input.click();
             }
         });
-        
+
         // File selection
         input.addEventListener('change', (e) => {
             this.handleFiles(Array.from(e.target.files));
         });
-        
+
         // Drag and drop
         zone.addEventListener('dragover', (e) => {
             e.preventDefault();
             zone.classList.add('drag-over');
         });
-        
+
         zone.addEventListener('dragleave', () => {
             zone.classList.remove('drag-over');
         });
-        
+
         zone.addEventListener('drop', (e) => {
             e.preventDefault();
             zone.classList.remove('drag-over');
@@ -124,11 +130,11 @@ class FileUploader {
     async uploadFile(file) {
         const formData = new FormData();
         formData.append('file', file);
-        
-        const zone = document.getElementById('uploadZone');
+
+        const zone = this.zoneEl;
         const progress = zone.querySelector('.file-upload-progress');
-        const progressBar = document.getElementById('progressBar');
-        
+        const progressBar = this.progressBar;
+
         zone.classList.add('uploading');
         progress.classList.add('active');
         
@@ -184,14 +190,14 @@ class FileUploader {
     }
     
     renderFileList() {
-        const list = document.getElementById('fileList');
+        const list = this.fileListEl;
         if (!list) return;
-        
+
         if (this.files.length === 0) {
             list.innerHTML = '';
             return;
         }
-        
+
         list.innerHTML = this.files.map((file, index) => `
             <div class="file-upload-item ${file.uploaded ? 'success' : ''}">
                 <svg class="file-upload-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -206,7 +212,7 @@ class FileUploader {
                         ${file.serverPath ? ` • ${file.serverPath}` : ''}
                     </div>
                 </div>
-                <button class="file-upload-item-remove" onclick="fileUploader.removeFile(${index})">
+                <button class="file-upload-item-remove" data-index="${index}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -214,6 +220,15 @@ class FileUploader {
                 </button>
             </div>
         `).join('');
+
+        // Attach remove handlers via delegation
+        list.querySelectorAll('.file-upload-item-remove').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(btn.getAttribute('data-index'));
+                this.removeFile(idx);
+            });
+        });
     }
     
     removeFile(index) {
@@ -236,11 +251,12 @@ class FileUploader {
     }
     
     showError(message) {
-        // Use existing notification system
-        if (window.showNotification) {
-            window.showNotification(message, 'error');
+        if (window.UI && typeof UI.showToast === 'function') {
+            UI.showToast(message, 'error');
+        } else if (window.Toast && typeof Toast.error === 'function') {
+            Toast.error(message);
         } else {
-            alert(message);
+            console.error('FileUploader:', message);
         }
     }
     
@@ -251,7 +267,7 @@ class FileUploader {
     clear() {
         this.files = [];
         this.renderFileList();
-        document.getElementById('fileInput').value = '';
+        if (this.inputEl) this.inputEl.value = '';
     }
 }
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" data-theme="light" xmlns:th="http://www.thymeleaf.org">
 
 <head th:replace="~{fragments/head :: head}"></head>
 
@@ -125,6 +125,7 @@
             const formData = {
                 jobType: 'FILE_OPERATION',
                 userId: document.getElementById('userId').value,
+                message: 'File operation: ' + operation,
                 priority: document.getElementById('priority').value,
                 parameters: {
                     operation: operation,

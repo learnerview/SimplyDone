@@ -72,4 +72,19 @@ public class ViewController {
     public String cleanup() {
         return "cleanup";
     }
+
+    @GetMapping("/assets")
+    public String assets() {
+        return "assets";
+    }
+
+    @GetMapping("/system-health")
+    public String systemHealth() {
+        return "system-health";
+    }
+
+    @GetMapping("/dlq")
+    public String dlq() {
+        return "dlq";
+    }
 }

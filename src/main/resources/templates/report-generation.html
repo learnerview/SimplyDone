@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" data-theme="light" xmlns:th="http://www.thymeleaf.org">
 
 <head th:replace="~{fragments/head :: head}"></head>
 
@@ -130,6 +130,7 @@
             const formData = {
                 jobType: 'REPORT_GENERATION',
                 userId: document.getElementById('userId').value,
+                message: 'Report generation: ' + document.getElementById('format').value,
                 priority: document.getElementById('priority').value,
                 parameters: {
                     format: document.getElementById('format').value,

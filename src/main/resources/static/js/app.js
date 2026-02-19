@@ -163,8 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             let data;
             if (state.activeTab === 'dlq') {
-                const result = await API.getDeadLetterJobs();
-                data = result.deadLetterJobs;
+                data = await API.getDeadLetterJobs();
             } else {
                 data = await API.getQueueJobs(state.activeTab);
             }

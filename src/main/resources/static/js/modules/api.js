@@ -59,8 +59,8 @@ const API = {
     async _fetch(endpoint, options = {}) {
         const url = `${this.baseUrl}${endpoint}`;
         const defaultOptions = { headers: { 'Content-Type': 'application/json' } };
-        
-        console.group(`🚀 API Request: ${options.method || 'GET'} ${endpoint}`);
+
+        console.group(`API Request: ${options.method || 'GET'} ${endpoint}`);
         if (options.body) console.log('Payload:', JSON.parse(options.body));
         console.groupEnd();
 
@@ -68,7 +68,7 @@ const API = {
             const response = await fetch(url, { ...defaultOptions, ...options });
             const json = await response.json();
 
-            console.group(`✅ API Response: ${response.status} ${endpoint}`);
+            console.group(`API Response: ${response.status} ${endpoint}`);
             console.log('Data:', json);
             console.groupEnd();
 
@@ -83,7 +83,7 @@ const API = {
             // unwrap the ApiResponse wrapper so callers get the actual data
             return json.data !== undefined ? json.data : json;
         } catch (err) {
-            console.group(`❌ API Error: ${endpoint}`);
+            console.group(`API Error: ${endpoint}`);
             console.error('Message:', err.message);
             if (err.data) console.error('Details:', err.data);
             console.groupEnd();

@@ -14,7 +14,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * Implementation of RetryService.
@@ -59,9 +58,9 @@ public class RetryServiceImpl implements RetryService {
         long delaySeconds = calculateBackoffDelay(currentAttempts);
         Instant retryAt = Instant.now().plusSeconds(delaySeconds);
 
-        // Create a new job for retry with the same properties + incremented attemptCount
+        // Retry with the same job ID so tracking and audit trail are preserved
         Job retryJob = Job.builder()
-                .id(UUID.randomUUID().toString())
+                .id(job.getId())
                 .jobType(job.getJobType())
                 .userId(job.getUserId())
                 .priority(job.getPriority())
@@ -152,13 +151,14 @@ public class RetryServiceImpl implements RetryService {
             if (deadLetterJobsRaw != null) {
                 for (String jobJson : deadLetterJobsRaw) {
                     DeadLetterJob deadLetterJob = objectMapper.readValue(jobJson, DeadLetterJob.class);
-                    if (deadLetterJob.getOriginalJobId().equals(deadLetterJobId)) {
+                    String originalJobId = deadLetterJob.getOriginalJobId();
+                    if (originalJobId != null && originalJobId.equals(deadLetterJobId)) {
                         jobRepository.removeFromDeadLetterQueue(jobJson);
                         Job originalJob = deadLetterJob.getOriginalJob();
 
-                        // Recreate the job from the dead letter queue with reset attemptCount
+                        // Re-queue with original ID so audit trail is preserved
                         Job retryJob = Job.builder()
-                                .id(UUID.randomUUID().toString())
+                                .id(originalJob.getId())
                                 .jobType(originalJob.getJobType())
                                 .userId(originalJob.getUserId())
                                 .priority(originalJob.getPriority())

@@ -1,28 +1,33 @@
-# Stage 1: Build the application
-FROM maven:3.8-eclipse-temurin-17 AS build
+# Local Development Dockerfile
+# This Dockerfile is designed for local development with the app running locally
+# and Redis/PostgreSQL running in Docker containers via docker-compose
+
+# Use a lightweight base image with Java 17
+FROM eclipse-temurin:17-jre-alpine
+
+# Install Maven for local development
+RUN apk add --no-cache maven
+
+# Set working directory
 WORKDIR /app
 
-# Copy pom.xml and download dependencies
+# Copy Maven files first for better layer caching
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
-
-# Copy source code and build
 COPY src ./src
-RUN mvn package -DskipTests
 
-# Stage 2: Run the application
-FROM eclipse-temurin:17-jre-jammy
-WORKDIR /app
-
-# Copy the built jar from the build stage
-COPY --from=build /app/target/SimplyDone-0.0.1-SNAPSHOT.jar app.jar
+# Build the application
+RUN mvn clean package -DskipTests
 
 # Expose the application port
 EXPOSE 8080
 
-# Environment variables
+# Environment variables for local development
 ENV PORT=8080
-ENV SPRING_PROFILES_ACTIVE=prod
+ENV SPRING_PROFILES_ACTIVE=dev
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
 
 # Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "target/SimplyDone-0.0.1-SNAPSHOT.jar"]

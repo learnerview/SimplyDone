@@ -1,8 +1,46 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: simplydone-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=simplydone
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: simplydone-redis
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Application (optional - for containerized deployment)
   app:
     build: .
+    container_name: simplydone-app
     ports:
       - "8080:8080"
     environment:
@@ -14,25 +52,21 @@ services:
       - SMTP_USERNAME=${SMTP_USERNAME:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - EMAIL_ENABLED=true
+      - SPRING_PROFILES_ACTIVE=docker
     depends_on:
-      - postgres
-      - redis
-
-  postgres:
-    image: postgres:15-alpine
-    ports:
-      - "5433:5432"
-    environment:
-      - POSTGRES_DB=simplydone
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6380:6379"
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+    profiles:
+      - containerized
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
+    driver: local

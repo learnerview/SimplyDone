@@ -100,7 +100,7 @@ public class JobRepository {
                         return null;
                     }
                     
-                    if ((Long) results.get(0) > 0) {
+                    if (results.get(0) instanceof Long removed && removed > 0) {
                         try {
                             log.info("Successfully claimed job from {}: {}", queueKey, jobJson);
                             return objectMapper.readValue(jobJson, Job.class);

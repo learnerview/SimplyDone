@@ -45,7 +45,7 @@ public class RateLimitingServiceImpl implements RateLimitingService {
                 Long newCount = (Long) results.get(1);
                 int requestCount = newCount != null ? newCount.intValue() : 1;
                 log.debug("Rate limit check for user {}: {}/{}", userId, requestCount, maxRequests);
-                return requestCount < maxRequests;
+                return requestCount <= maxRequests;
             }
             return true;
         } catch (Exception e) {
@@ -61,7 +61,14 @@ public class RateLimitingServiceImpl implements RateLimitingService {
         
         try {
             String currentCountStr = redisTemplate.opsForValue().get(rateLimitKey);
-            int currentCount = currentCountStr != null ? Integer.parseInt(currentCountStr) : 0;
+            int currentCount = 0;
+            if (currentCountStr != null) {
+                try {
+                    currentCount = Integer.parseInt(currentCountStr);
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid rate limit counter for user {}: {}", userId, currentCountStr);
+                }
+            }
             Long ttl = redisTemplate.getExpire(rateLimitKey);
             long resetTimeSeconds = ttl != null && ttl > 0 ? ttl : 60;
             

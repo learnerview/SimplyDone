@@ -74,15 +74,15 @@ class RetryServiceTest {
     }
 
     @Test
-    @DisplayName("Retry job gets a new unique ID")
-    void retryJob_createsNewJobId() {
+    @DisplayName("Retry job preserves the original job ID for tracking")
+    void retryJob_preservesOriginalJobId() {
         Job job = buildJob();
         ArgumentCaptor<Job> captor = ArgumentCaptor.forClass(Job.class);
 
         retryService.retryJob(job, new RuntimeException("error"));
 
         verify(jobRepository).saveJob(captor.capture());
-        assertThat(captor.getValue().getId()).isNotEqualTo(job.getId());
+        assertThat(captor.getValue().getId()).isEqualTo(job.getId());
     }
 
     @Test

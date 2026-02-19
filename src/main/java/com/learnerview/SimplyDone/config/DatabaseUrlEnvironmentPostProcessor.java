@@ -13,22 +13,38 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-        String databaseUrl = environment.getProperty("DATABASE_URL");
-        if (databaseUrl == null) {
+        String databaseUrl = System.getenv("DATABASE_URL");
+        if (databaseUrl == null || databaseUrl.isBlank()) {
+            databaseUrl = environment.getProperty("spring.datasource.url");
+        }
+
+        String jdbcUrl = normalizeJdbcUrl(databaseUrl);
+        if (jdbcUrl == null) {
             return;
         }
 
-        if (databaseUrl.startsWith("postgres://") || databaseUrl.startsWith("postgresql://")) {
-            String jdbcUrl = "jdbc:postgresql://" + databaseUrl.substring(databaseUrl.indexOf("://") + 3);
-            Map<String, Object> normalized = new HashMap<>();
-            normalized.put("spring.datasource.url", jdbcUrl);
-            environment.getPropertySources()
-                .addFirst(new MapPropertySource("normalizedDatabaseUrl", normalized));
-        }
+        System.setProperty("spring.datasource.url", jdbcUrl);
+        Map<String, Object> normalized = new HashMap<>();
+        normalized.put("spring.datasource.url", jdbcUrl);
+        environment.getPropertySources()
+            .addFirst(new MapPropertySource("normalizedDatabaseUrl", normalized));
     }
 
     @Override
     public int getOrder() {
         return Ordered.HIGHEST_PRECEDENCE;
+    }
+
+    private static String normalizeJdbcUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+        if (url.startsWith("jdbc:")) {
+            return url;
+        }
+        if (url.startsWith("postgres://") || url.startsWith("postgresql://")) {
+            return "jdbc:postgresql://" + url.substring(url.indexOf("://") + 3);
+        }
+        return null;
     }
 }

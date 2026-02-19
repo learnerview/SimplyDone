@@ -1,0 +1,97 @@
+<nav th:fragment="sidebar" class="sidebar">
+    <div class="sidebar-brand">
+        <div class="brand-glow"></div>
+        <div class="brand-icon">
+            <i data-lucide="zap" class="brand-zap"></i>
+        </div>
+        <span class="brand-name">SimplyDone</span>
+    </div>
+
+    <div class="nav-section">
+        <span class="nav-label">Core</span>
+        <ul class="nav-list">
+            <li>
+                <a th:href="@{/}" class="nav-item" th:classappend="${currentPage == 'dashboard'} ? 'active' : ''">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a th:href="@{/jobs}" class="nav-item" th:classappend="${currentPage == 'jobs'} ? 'active' : ''">
+                    <i data-lucide="list-checks"></i>
+                    <span>All Jobs</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="nav-section">
+        <span class="nav-label">Services</span>
+        <ul class="nav-list">
+            <li>
+                <a th:href="@{/email-send}" class="nav-item" th:classappend="${currentPage == 'email'} ? 'active' : ''">
+                    <i data-lucide="mail"></i>
+                    <span>Email & Comms</span>
+                </a>
+            </li>
+            <li>
+                <a th:href="@{/data-process}" class="nav-item"
+                    th:classappend="${currentPage == 'data'} ? 'active' : ''">
+                    <i data-lucide="database"></i>
+                    <span>Data Engine</span>
+                </a>
+            </li>
+            <li>
+                <a th:href="@{/api-call}" class="nav-item" th:classappend="${currentPage == 'api'} ? 'active' : ''">
+                    <i data-lucide="globe"></i>
+                    <span>API Integrator</span>
+                </a>
+            </li>
+            <li>
+                <a th:href="@{/file-operation}" class="nav-item"
+                    th:classappend="${currentPage == 'file'} ? 'active' : ''">
+                    <i data-lucide="file-code"></i>
+                    <span>File Systems</span>
+                </a>
+            </li>
+            <li>
+                <a th:href="@{/notification}" class="nav-item"
+                    th:classappend="${currentPage == 'notification'} ? 'active' : ''">
+                    <i data-lucide="bell"></i>
+                    <span>Notifications</span>
+                </a>
+            </li>
+            <li>
+                <a th:href="@{/report-generation}" class="nav-item"
+                    th:classappend="${currentPage == 'report'} ? 'active' : ''">
+                    <i data-lucide="file-bar-chart"></i>
+                    <span>Reports</span>
+                </a>
+            </li>
+            <li>
+                <a th:href="@{/cleanup}" class="nav-item" th:classappend="${currentPage == 'cleanup'} ? 'active' : ''">
+                    <i data-lucide="trash-2"></i>
+                    <span>Maintenance</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="nav-section mt-auto">
+        <ul class="nav-list">
+            <li>
+                <a th:href="@{/admin}" class="nav-item" th:classappend="${currentPage == 'admin'} ? 'active' : ''">
+                    <i data-lucide="shield-check"></i>
+                    <span>Admin Tools</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="sidebar-footer">
+        <button class="theme-toggle-btn glass-pill" onclick="Theme.toggle()">
+            <i data-lucide="moon" id="theme-icon"></i>
+            <span>Mode</span>
+        </button>
+    </div>
+</nav>

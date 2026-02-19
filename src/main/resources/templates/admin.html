@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/head :: head}"></head>
+
+<body>
+    <div class="main-layout">
+        <nav th:replace="~{fragments/sidebar :: sidebar}"></nav>
+
+        <main class="main-content">
+            <header class="navbar glass-border-b">
+                <div class="breadcrumb">
+                    <span class="text-secondary">Core</span>
+                    <span class="mx-2">/</span>
+                    <span class="font-bold">System Administration</span>
+                </div>
+                <div class="flex gap-4">
+                    <button class="btn btn-secondary" id="refresh-admin-btn">
+                        <i data-lucide="refresh-cw"></i>
+                        <span>Sync</span>
+                    </button>
+                    <button class="btn btn-danger" id="clear-all-btn">
+                        <i data-lucide="zap-off"></i>
+                        <span>Flush All Queues</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="mt-8 space-y-8">
+                <!-- System Vitals -->
+                <section>
+                    <div class="card-title mb-4">
+                        <i data-lucide="activity"></i>
+                        <span>System Vitals</span>
+                    </div>
+                    <div id="perf-stats" class="stat-grid">
+                        <!-- JS Injection -->
+                        <div class="glass-card animate-pulse h-32"></div>
+                        <div class="glass-card animate-pulse h-32"></div>
+                        <div class="glass-card animate-pulse h-32"></div>
+                    </div>
+                </section>
+
+                <!-- DLQ Management -->
+                <section>
+                    <div class="glass-card overflow-hidden">
+                        <div class="card-title px-6 pt-6">
+                            <i data-lucide="alert-octagon" class="text-danger"></i>
+                            <span>Recovery Protocol (DLQ)</span>
+                        </div>
+                        <p class="text-xs text-secondary px-6 mb-6">Jobs that exceeded retry limits or encountered fatal
+                            exceptions.</p>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="text-xs uppercase text-secondary glass-border-b">
+                                        <th class="px-6 py-4">Job Identifier</th>
+                                        <th class="px-6 py-4">Context / Message</th>
+                                        <th class="px-6 py-4">Attempts</th>
+                                        <th class="px-6 py-4">Exit Reason</th>
+                                        <th class="px-6 py-4 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dlq-table-body" class="text-sm">
+                                    <!-- JS Injection -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script th:src="@{/js/modules/api.js}"></script>
+    <script th:src="@{/js/modules/theme.js}"></script>
+    <script th:src="@{/js/modules/ui.js}"></script>
+    <script th:src="@{/js/pages/admin.js}"></script>
+</body>
+
+</html>

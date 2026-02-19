@@ -60,10 +60,10 @@ public class JobSchedulerHealthIndicator implements HealthIndicator {
             
             // Consider unhealthy if queues are too large (>1000 jobs)
             if (totalSize > 1000) {
-                healthBuilder = Health.down();
+                healthBuilder = Health.outOfService();
                 details.put("status", "Queues overloaded");
             } else if (totalSize > 500) {
-                healthBuilder = Health.down(); // Use down() instead of warning() as warning() might not be available
+                healthBuilder = Health.unknown();
                 details.put("status", "Queues getting full");
             } else {
                 healthBuilder = Health.up();

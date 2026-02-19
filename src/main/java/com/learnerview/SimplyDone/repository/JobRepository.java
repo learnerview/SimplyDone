@@ -16,12 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Redis-based repository following the exact pattern from redis-scheduler-master.
- * 
- * Uses Redis sorted sets with proper atomic operations and transactions.
- * Implements the same patterns as the professional reference implementation.
- */
 @Repository
 @RequiredArgsConstructor
 @Slf4j
@@ -32,464 +26,227 @@ public class JobRepository {
     private final SchedulerProperties schedulerProperties;
     private final ObjectMapper objectMapper;
     
-    // Redis key patterns - fully configurable from properties
-    private String HIGH_PRIORITY_QUEUE;
-    private String LOW_PRIORITY_QUEUE;
-    private String EXECUTED_JOBS_COUNTER;
-    private String REJECTED_JOBS_COUNTER;
-    
-    /**
-     * Initialize Redis keys from configuration.
-     */
-    private void initializeKeys() {
-        HIGH_PRIORITY_QUEUE = schedulerProperties.getQueues().getHigh();
-        LOW_PRIORITY_QUEUE = schedulerProperties.getQueues().getLow();
-        EXECUTED_JOBS_COUNTER = schedulerProperties.getStats().getExecuted();
-        REJECTED_JOBS_COUNTER = schedulerProperties.getStats().getRejected();
+    // Redis keys
+    private String highPriorityQueue;
+    private String lowPriorityQueue;
+    private String executedJobsCounter;
+    private String rejectedJobsCounter;
+    private String deadLetterQueue;
+
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        highPriorityQueue = schedulerProperties.getQueues().getHigh();
+        lowPriorityQueue = schedulerProperties.getQueues().getLow();
+        executedJobsCounter = schedulerProperties.getStats().getExecuted();
+        rejectedJobsCounter = schedulerProperties.getStats().getRejected();
+        deadLetterQueue = schedulerProperties.getQueues().getDeadLetter();
     }
     
-    /**
-     * Stores a job in the appropriate priority queue.
-     * Uses Redis sorted set with execution timestamp as score.
-     * 
-     * @param job the job to store
-     * @return true if successfully stored, false otherwise
-     */
-    public boolean saveJob(Job job) {
-        String queueKey = null;
-        double score = 0;
+    public void saveJob(Job job) {
+        String queueKey = getQueueKey(job.getPriority());
+        double score = job.getExecuteAt().toEpochMilli();
         try {
-            // Initialize keys if not already done
-            if (HIGH_PRIORITY_QUEUE == null) {
-                initializeKeys();
-            }
-            
-            queueKey = getQueueKey(job.getPriority());
-            score = job.getExecuteAt().toEpochMilli();
             String jobJson = objectMapper.writeValueAsString(job);
-            
             redisTemplate.opsForZSet().add(queueKey, jobJson, score);
-            log.debug("Job {} stored in {} queue with execution time {}", 
-                     job.getId(), job.getPriority(), job.getExecuteAt());
-            return true;
+            log.debug("Job {} saved to {} queue", job.getId(), job.getPriority());
         } catch (Exception e) {
-            log.error("Failed to save job {} to Redis: {} | Queue: {} | Score: {} | Error Type: {}", 
-                     job.getId(), e.getMessage(), queueKey, score, e.getClass().getSimpleName());
-            log.error("Full error details:", e);
-            return false;
+            log.error("Failed to save job {} to {} queue: {}", job.getId(), job.getPriority(), e.getMessage());
+            throw new RuntimeException("Failed to save job to queue: " + e.getMessage(), e);
         }
     }
     
-    /**
-     * Retrieves the next ready job for execution using Redis transactions.
-     * Follows the exact pattern from redis-scheduler-master with WATCH/MULTI/EXEC.
-     * 
-     * @return the next ready job, or null if no jobs are ready
-     */
+    public Job getNextReadyJob(JobPriority priority) {
+        return getNextReadyJobFromQueue(getQueueKey(priority));
+    }
+
     public Job getNextReadyJob() {
-        // Initialize keys if not already done
-        if (HIGH_PRIORITY_QUEUE == null) {
-            initializeKeys();
-        }
-        
-        // First try to get a HIGH priority job
-        Job job = getNextReadyJobFromQueue(HIGH_PRIORITY_QUEUE);
-        if (job != null) {
-            return job;
-        }
-        
-        // If no HIGH priority jobs, try LOW priority
-        return getNextReadyJobFromQueue(LOW_PRIORITY_QUEUE);
+        Job job = getNextReadyJob(JobPriority.HIGH);
+        return job != null ? job : getNextReadyJob(JobPriority.LOW);
     }
     
     /**
-     * Retrieves the next ready job from a specific queue using Redis transactions.
-     * Implements the same atomic pattern as redis-scheduler-master.
+     * Retrieves and claims the next ready job from the specified queue using an atomic transaction.
      * 
-     * @param queueKey the Redis key for the queue
-     * @return the next ready job, or null if no jobs are ready
+     * Technical approach:
+     * 1. WATCH the queue key to detect concurrent modifications.
+     * 2. Range query for the first job with a score <= current timestamp.
+     * 3. Begin a MULTI transaction to ensure atomicity.
+     * 4. REMOVE the specific job JSON from the sorted set.
+     * 5. EXEC the transaction. If EXEC returns null, another instance claimed the job first.
+     * 
+     * @param queueKey The Redis key for the priority queue (sorted set).
+     * @return The claimed Job object, or null if no jobs are ready or a transaction conflict occurred.
      */
     private Job getNextReadyJobFromQueue(String queueKey) {
         try {
             double currentTime = Instant.now().toEpochMilli();
-            
-            // Use Redis transaction for atomic operations
             return redisTemplate.execute(new SessionCallback<Job>() {
                 @Override
-                public Job execute(org.springframework.data.redis.core.RedisOperations operations) throws org.springframework.dao.DataAccessException {
-                    // Watch the queue for changes
+                public Job execute(org.springframework.data.redis.core.RedisOperations operations) {
                     operations.watch(queueKey);
-                    
-                    // Get jobs with score <= current time (ready for execution)
-                    Set<String> readyJobs = operations.opsForZSet()
-                        .rangeByScore(queueKey, 0, currentTime, 0, 1);
+                    Set<String> readyJobs = operations.opsForZSet().rangeByScore(queueKey, 0, currentTime, 0, 1);
                     
                     if (readyJobs == null || readyJobs.isEmpty()) {
                         operations.unwatch();
                         return null;
                     }
                     
-                    // Get the first ready job
                     String jobJson = readyJobs.iterator().next();
-                    
-                    // Start transaction
                     operations.multi();
-                    
-                    // Remove the job from the queue
                     operations.opsForZSet().remove(queueKey, jobJson);
-                    
-                    // Execute transaction
                     List<Object> results = operations.exec();
-                    
-                    // Check if transaction was successful
-                    if (results != null && !results.isEmpty() && (Long) results.get(0) > 0) {
-                        // Job was successfully removed, parse and return it
-                        try {
-                            return objectMapper.readValue(jobJson, Job.class);
-                        } catch (Exception e) {
-                            log.error("Failed to parse job JSON: {}", e.getMessage());
-                            return null;
-                        }
-                    } else {
-                        // Race condition - job was taken by another worker
-                        log.debug("Race condition detected for job in queue {}", queueKey);
+                    if (results == null || results.isEmpty()) {
+                        log.debug("Transaction conflict or no jobs ready in {} - retrying later", queueKey);
                         return null;
                     }
+                    
+                    if ((Long) results.get(0) > 0) {
+                        try {
+                            log.info("Successfully claimed job from {}: {}", queueKey, jobJson);
+                            return objectMapper.readValue(jobJson, Job.class);
+                        } catch (Exception e) {
+                            log.error("Failed to parse claimed job JSON: {}", e.getMessage());
+                            return null;
+                        }
+                    }
+                    return null;
                 }
             });
-            
-        } catch (org.springframework.dao.DataAccessException e) {
-            // Let Redis connection exceptions bubble up to the worker for proper handling
-            if (e.getMessage() != null && e.getMessage().contains("Unable to connect to Redis")) {
-                throw e;
-            }
-            log.error("Failed to retrieve next ready job from {}: {}", queueKey, e.getMessage());
-            return null;
         } catch (Exception e) {
-            log.error("Failed to retrieve next ready job from {}: {}", queueKey, e.getMessage());
+            if (e.getMessage() != null && e.getMessage().contains("connect")) throw e;
+            log.error("Queue retrieval error: {}", e.getMessage());
             return null;
         }
     }
     
-    /**
-     * Gets the size of a specific queue.
-     * 
-     * @param priority the job priority
-     * @return number of jobs in the queue
-     */
     public long getQueueSize(JobPriority priority) {
-        // Initialize keys if not already done
-        if (HIGH_PRIORITY_QUEUE == null) {
-            initializeKeys();
-        }
-        
         String queueKey = getQueueKey(priority);
         Long size = redisTemplate.opsForZSet().size(queueKey);
         return size != null ? size : 0;
     }
     
-    /**
-     * Gets all jobs in a queue (for debugging/admin purposes).
-     * 
-     * @param priority the job priority
-     * @return list of jobs in the queue
-     */
     public List<Job> getAllJobsInQueue(JobPriority priority) {
         try {
-            // Initialize keys if not already done
-            if (HIGH_PRIORITY_QUEUE == null) {
-                initializeKeys();
-            }
-            
             String queueKey = getQueueKey(priority);
             Set<String> jobs = redisTemplate.opsForZSet().range(queueKey, 0, -1);
-            
             List<Job> jobList = new ArrayList<>();
             if (jobs != null) {
                 for (String jobJson : jobs) {
                     try {
-                        Job job = objectMapper.readValue(jobJson, Job.class);
-                        jobList.add(job);
+                        jobList.add(objectMapper.readValue(jobJson, Job.class));
                     } catch (Exception e) {
-                        log.error("Failed to parse job JSON: {}", e.getMessage());
-                        // Skip invalid job and continue with others
+                        log.warn("Skipping malformed job JSON in queue: {}", e.getMessage());
                     }
                 }
             }
             return jobList;
         } catch (Exception e) {
-            log.error("Failed to retrieve jobs from {} queue: {}", priority, e.getMessage());
+            log.error("Failed to list jobs: {}", e.getMessage());
             return new ArrayList<>();
         }
     }
     
-    /**
-     * Increments the executed jobs counter using proper Redis template.
-     */
     public void incrementExecutedJobsCounter() {
-        // Initialize keys if not already done
-        if (EXECUTED_JOBS_COUNTER == null) {
-            initializeKeys();
-        }
-        
-        redisLongTemplate.opsForValue().increment(EXECUTED_JOBS_COUNTER);
+        redisLongTemplate.opsForValue().increment(executedJobsCounter);
     }
     
-    /**
-     * Increments the rejected jobs counter using proper Redis template.
-     */
     public void incrementRejectedJobsCounter() {
-        // Initialize keys if not already done
-        if (REJECTED_JOBS_COUNTER == null) {
-            initializeKeys();
-        }
-        
-        redisLongTemplate.opsForValue().increment(REJECTED_JOBS_COUNTER);
+        redisLongTemplate.opsForValue().increment(rejectedJobsCounter);
     }
     
-    /**
-     * Gets the count of executed jobs using proper Redis template.
-     * 
-     * @return number of executed jobs
-     */
     public long getExecutedJobsCount() {
-        // Initialize keys if not already done
-        if (EXECUTED_JOBS_COUNTER == null) {
-            initializeKeys();
-        }
-        
-        Long count = redisLongTemplate.opsForValue().get(EXECUTED_JOBS_COUNTER);
+        Long count = redisLongTemplate.opsForValue().get(executedJobsCounter);
         return count != null ? count : 0;
     }
     
-    /**
-     * Gets the count of rejected jobs using proper Redis template.
-     * 
-     * @return number of rejected jobs
-     */
     public long getRejectedJobsCount() {
-        // Initialize keys if not already done
-        if (REJECTED_JOBS_COUNTER == null) {
-            initializeKeys();
-        }
-        
-        Long count = redisLongTemplate.opsForValue().get(REJECTED_JOBS_COUNTER);
+        Long count = redisLongTemplate.opsForValue().get(rejectedJobsCounter);
         return count != null ? count : 0;
     }
     
-    /**
-     * Cancels a job by removing it from the queue.
-     * 
-     * @param jobId the ID of the job to cancel
-     * @return true if job was found and cancelled, false if not found
-     */
-    public boolean cancelJob(String jobId) {
-        // Initialize keys if not already done
-        if (HIGH_PRIORITY_QUEUE == null) {
-            initializeKeys();
-        }
-        
-        try {
-            // Try to cancel from HIGH priority queue first
-            if (cancelJobFromQueue(jobId, HIGH_PRIORITY_QUEUE)) {
-                return true;
-            }
-            
-            // If not found in HIGH priority, try LOW priority
-            return cancelJobFromQueue(jobId, LOW_PRIORITY_QUEUE);
-            
-        } catch (Exception e) {
-            log.error("Failed to cancel job {}: {}", jobId, e.getMessage());
-            return false;
-        }
+    public boolean deleteJob(String jobId) {
+        return deleteJobFromQueue(jobId, highPriorityQueue) || deleteJobFromQueue(jobId, lowPriorityQueue);
     }
     
-    /**
-     * Cancels a job from a specific queue.
-     * 
-     * @param jobId the ID of the job to cancel
-     * @param queueKey the Redis key for the queue
-     * @return true if job was found and cancelled, false if not found
-     */
-    private boolean cancelJobFromQueue(String jobId, String queueKey) {
+    private boolean deleteJobFromQueue(String jobId, String queueKey) {
         try {
-            // Get all jobs in the queue
             Set<String> jobs = redisTemplate.opsForZSet().range(queueKey, 0, -1);
-            
-            if (jobs == null || jobs.isEmpty()) {
-                return false;
-            }
-            
-            // Find the job with matching ID
+            if (jobs == null) return false;
             for (String jobJson : jobs) {
-                try {
-                    Job job = objectMapper.readValue(jobJson, Job.class);
-                    if (job.getId().equals(jobId)) {
-                        // Remove the job from the queue
-                        Long removed = redisTemplate.opsForZSet().remove(queueKey, jobJson);
-                        if (removed != null && removed > 0) {
-                            log.info("Job {} cancelled successfully from queue {}", jobId, queueKey);
-                            return true;
-                        }
-                    }
-                } catch (Exception e) {
-                    log.error("Failed to parse job JSON while cancelling: {}", e.getMessage());
-                    // Skip invalid job and continue
+                Job job = objectMapper.readValue(jobJson, Job.class);
+                if (job.getId().equals(jobId)) {
+                    Long removed = redisTemplate.opsForZSet().remove(queueKey, jobJson);
+                    return removed != null && removed > 0;
                 }
             }
-            
             return false;
-            
         } catch (Exception e) {
-            log.error("Failed to cancel job {} from queue {}: {}", jobId, queueKey, e.getMessage());
-            return false;
+            log.error("Failed to delete job {} from queue {}: {}", jobId, queueKey, e.getMessage());
+            throw new RuntimeException("Failed to delete job from queue: " + e.getMessage(), e);
         }
     }
     
-    /**
-     * Gets a specific job by ID from any queue.
-     * 
-     * @param jobId the ID of the job to retrieve
-     * @return the job if found, null otherwise
-     */
     public Job getJobById(String jobId) {
-        // Initialize keys if not already done
-        if (HIGH_PRIORITY_QUEUE == null) {
-            initializeKeys();
-        }
-        
-        // Try to find in HIGH priority queue first
-        Job job = getJobByIdFromQueue(jobId, HIGH_PRIORITY_QUEUE);
-        if (job != null) {
-            return job;
-        }
-        
-        // If not found in HIGH priority, try LOW priority
-        return getJobByIdFromQueue(jobId, LOW_PRIORITY_QUEUE);
+        Job job = getJobByIdFromQueue(jobId, highPriorityQueue);
+        return job != null ? job : getJobByIdFromQueue(jobId, lowPriorityQueue);
     }
     
-    /**
-     * Gets a specific job by ID from a specific queue.
-     * 
-     * @param jobId the ID of the job to retrieve
-     * @param queueKey the Redis key for the queue
-     * @return the job if found, null otherwise
-     */
     private Job getJobByIdFromQueue(String jobId, String queueKey) {
         try {
             Set<String> jobs = redisTemplate.opsForZSet().range(queueKey, 0, -1);
-            
-            if (jobs == null || jobs.isEmpty()) {
-                return null;
-            }
-            
+            if (jobs == null) return null;
             for (String jobJson : jobs) {
-                try {
-                    Job job = objectMapper.readValue(jobJson, Job.class);
-                    if (job.getId().equals(jobId)) {
-                        return job;
-                    }
-                } catch (Exception e) {
-                    log.error("Failed to parse job JSON: {}", e.getMessage());
-                    // Skip invalid job and continue
-                }
+                Job job = objectMapper.readValue(jobJson, Job.class);
+                if (job.getId().equals(jobId)) return job;
             }
-            
-            return null;
-            
         } catch (Exception e) {
             log.error("Failed to retrieve job {} from queue {}: {}", jobId, queueKey, e.getMessage());
-            return null;
+            throw new RuntimeException("Failed to retrieve job from queue: " + e.getMessage(), e);
         }
+        return null;
     }
     
-    /**
-     * Clears all jobs from both high and low priority queues.
-     * Uses efficient Redis bulk delete operations.
-     * 
-     * @return number of jobs cleared
-     */
     public int clearAllQueues() {
-        // Initialize keys if not already done
-        if (HIGH_PRIORITY_QUEUE == null) {
-            initializeKeys();
-        }
-        
-        try {
-            // Get current queue sizes before clearing
-            Long highPrioritySize = redisTemplate.opsForZSet().size(HIGH_PRIORITY_QUEUE);
-            Long lowPrioritySize = redisTemplate.opsForZSet().size(LOW_PRIORITY_QUEUE);
-            
-            int totalCleared = 0;
-            
-            // Clear high priority queue
-            if (highPrioritySize != null && highPrioritySize > 0) {
-                redisTemplate.delete(HIGH_PRIORITY_QUEUE);
-                totalCleared += highPrioritySize.intValue();
-                log.info("Cleared {} jobs from high priority queue", highPrioritySize);
-            }
-            
-            // Clear low priority queue
-            if (lowPrioritySize != null && lowPrioritySize > 0) {
-                redisTemplate.delete(LOW_PRIORITY_QUEUE);
-                totalCleared += lowPrioritySize.intValue();
-                log.info("Cleared {} jobs from low priority queue", lowPrioritySize);
-            }
-            
-            log.info("Total jobs cleared from all queues: {}", totalCleared);
-            return totalCleared;
-            
-        } catch (Exception e) {
-            log.error("Failed to clear all queues: {}", e.getMessage());
-            return 0;
-        }
+        return clearQueue(JobPriority.HIGH) + clearQueue(JobPriority.LOW);
     }
     
-    /**
-     * Clears a specific priority queue.
-     * 
-     * @param priority the priority queue to clear
-     * @return number of jobs cleared
-     */
     public int clearQueue(JobPriority priority) {
-        // Initialize keys if not already done
-        if (HIGH_PRIORITY_QUEUE == null) {
-            initializeKeys();
-        }
-        
         try {
             String queueKey = getQueueKey(priority);
             Long size = redisTemplate.opsForZSet().size(queueKey);
-            
             if (size != null && size > 0) {
                 redisTemplate.delete(queueKey);
-                log.info("Cleared {} jobs from {} priority queue", size, priority);
                 return size.intValue();
             }
-            
             return 0;
-            
         } catch (Exception e) {
             log.error("Failed to clear {} priority queue: {}", priority, e.getMessage());
-            return 0;
+            throw new RuntimeException("Failed to clear queue: " + e.getMessage(), e);
         }
     }
     
-    /**
-     * Gets the Redis key for a job priority queue.
-     * 
-     * @param priority the job priority
-     * @return the Redis key
-     */
-    private String getQueueKey(JobPriority priority) {
-        // Initialize keys if not already done
-        if (HIGH_PRIORITY_QUEUE == null) {
-            initializeKeys();
+    public void saveToDeadLetterQueue(String deadLetterJson) {
+        redisTemplate.opsForZSet().add(deadLetterQueue, deadLetterJson, Instant.now().toEpochMilli());
+    }
+
+    public Set<String> getDeadLetterJobsRaw() {
+        return redisTemplate.opsForZSet().range(deadLetterQueue, 0, -1);
+    }
+
+    public int clearDeadLetterQueue() {
+        Long count = redisTemplate.opsForZSet().size(deadLetterQueue);
+        if (count != null && count > 0) {
+            redisTemplate.delete(deadLetterQueue);
+            return count.intValue();
         }
-        
-        return switch (priority) {
-            case HIGH -> HIGH_PRIORITY_QUEUE;
-            case LOW -> LOW_PRIORITY_QUEUE;
-        };
+        return 0;
+    }
+
+    public void removeFromDeadLetterQueue(String jobJson) {
+        redisTemplate.opsForZSet().remove(deadLetterQueue, jobJson);
+    }
+
+    private String getQueueKey(JobPriority priority) {
+        return priority == JobPriority.HIGH ? highPriorityQueue : lowPriorityQueue;
     }
 }

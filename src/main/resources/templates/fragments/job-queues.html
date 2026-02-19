@@ -1,0 +1,77 @@
+<div th:fragment="job-queues" class="space-y-6">
+    <!-- High Priority Queue -->
+    <div class="glass-card glass-card-brand">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center">
+                    <i data-lucide="zap" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-base">High Priority Queue</h4>
+                    <p class="text-xs text-secondary">Express processing lane</p>
+                </div>
+            </div>
+            <span id="high-count" class="badge badge-brand">0 Items</span>
+        </div>
+        <div class="table-container">
+            <table class="w-full">
+                <thead>
+                    <tr class="glass-border-b">
+                        <th class="text-left py-3 px-4 text-xs">Job ID</th>
+                        <th class="text-left py-3 px-4 text-xs">Type</th>
+                        <th class="text-left py-3 px-4 text-xs">Status</th>
+                        <th class="text-right py-3 px-4 text-xs">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="high-priority-list" class="text-sm">
+                    <tr>
+                        <td colspan="4" class="py-12 text-center">
+                            <div class="flex flex-col items-center gap-3 opacity-50">
+                                <div class="spinner spinner-sm"></div>
+                                <span class="text-xs text-secondary">Loading queue data...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Low Priority Queue -->
+    <div class="glass-card">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center border border-zinc-700">
+                    <i data-lucide="clock" class="w-5 h-5 text-zinc-400"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-base text-zinc-400">Standard Queue</h4>
+                    <p class="text-xs text-secondary">Background processing</p>
+                </div>
+            </div>
+            <span id="low-count" class="badge badge-ghost">0 Items</span>
+        </div>
+        <div class="table-container">
+            <table class="w-full">
+                <thead>
+                    <tr class="glass-border-b">
+                        <th class="text-left py-3 px-4 text-xs">Job ID</th>
+                        <th class="text-left py-3 px-4 text-xs">Type</th>
+                        <th class="text-left py-3 px-4 text-xs">Status</th>
+                        <th class="text-right py-3 px-4 text-xs">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="low-priority-list" class="text-sm">
+                    <tr>
+                        <td colspan="4" class="py-12 text-center">
+                            <div class="flex flex-col items-center gap-3 opacity-50">
+                                <div class="spinner spinner-sm"></div>
+                                <span class="text-xs text-secondary">Loading queue data...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

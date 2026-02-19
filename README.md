@@ -1,304 +1,290 @@
-# SimplyDone - Priority Job Scheduler
+# SimplyDone
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/learnerview/simplydone)
-[![Java Version](https://img.shields.io/badge/java-17+-orange.svg)](https://openjdk.java.net/)
-[![Spring Boot](https://img.shields.io/badge/spring%20boot-3.2.1-green.svg)](https://spring.io/projects/spring-boot)
-[![Redis](https://img.shields.io/badge/redis-6.0+-red.svg)](https://redis.io/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+A production-ready priority job scheduling system built with Spring Boot 3.2 and Java 17. SimplyDone accepts job submissions via REST API, queues them in Redis with HIGH and LOW priority lanes, executes them using a pluggable strategy pattern, persists the audit trail in PostgreSQL, and includes a browser-based dashboard for monitoring and control.
 
-A priority job scheduling system built with Spring Boot and Redis, featuring intelligent retry logic, rate limiting, and comprehensive monitoring.
+## Overview
 
-## ✨ Features
+SimplyDone solves asynchronous job processing with a clean separation between submission, queueing, and execution. Submit a job via REST endpoint or web form, the scheduler holds it in Redis, a background worker dispatches it to the correct handler when its execution time arrives, and all events are logged permanently to PostgreSQL.
 
-### 🚀 Core Functionality
-- **Priority-based Scheduling**: HIGH and LOW priority queues with FIFO ordering
-- **Intelligent Retry Logic**: Exponential backoff with configurable max attempts
-- **Dead Letter Queue**: Failed job inspection and manual retry capabilities
-- **Rate Limiting**: User-based rate limiting (10 jobs/minute by default)
-- **Real-time Monitoring**: Spring Boot Actuator + Prometheus metrics
+### Key features
 
-### 🛠️ Advanced Features
-- **Admin Management**: Complete queue and user management APIs
-- **Scalable Architecture**: Redis-backed with horizontal scaling support
-- **Error Handling**: Robust error handling with detailed error responses
-- **Performance Optimized**: Efficient Redis operations and connection pooling
+- **Priority queues** — HIGH and LOW priority lanes with independent processing
+- **7 pluggable job types** — API calls, email, reports, data processing, file operations, notifications, cleanup
+- **Resilient execution** — Retry logic with exponential backoff, dead-letter queue for permanent failures
+- **Complete audit trail** — Every submission, execution, and failure logged to PostgreSQL
+- **Web dashboard** — Browser-based interface for job submission and queue monitoring
+- **REST API** — Full CRUD operations with job lifecycle management
+- **File upload** — Drag-and-drop file upload with automatic cleanup scheduler
+- **Docker ready** — Includes docker-compose for local development
+- **Cloud native** — Production-ready configuration for Render, AWS, GCP, or Azure
 
-### 📊 Monitoring & Observability
-- **Health Checks**: Application, Redis, and custom health indicators
-- **Metrics Collection**: Job execution, submission, and system metrics
-- **Prometheus Integration**: Ready for monitoring
+## Supported job types
 
-## 🏗️ Architecture
+| Type | Purpose | Use case |
+|---|---|---|
+| **EMAIL_SEND** | Sends transactional email via Resend API | Automated notifications, password resets |
+| **DATA_PROCESS** | Reads CSV, transforms, aggregates, validates | ETL pipelines, data cleanup |
+| **API_CALL** | Makes HTTP requests with retry logic | Webhooks, integrations, sync operations |
+| **FILE_OPERATION** | Copy, move, delete, zip, unzip files | File management, backups, archiving |
+| **NOTIFICATION** | Posts to Slack, Discord, Teams, Telegram, webhooks | Alerts, status updates, team notifications |
+| **REPORT_GENERATION** | Generates HTML, CSV, JSON, or text reports | Business intelligence, analytics, exports |
+| **CLEANUP** | Deletes old files, clears directories, purges cache | Maintenance, disk cleanup, cache management |
 
+## Quick start
+
+### With Docker (recommended for local development)
+
+**Prerequisites:** Docker, Docker Compose, Java 17, Maven 3.8+
+
+```bash
+# 1. Start PostgreSQL and Redis containers
+docker compose up -d
+
+# 2. Run the application
+mvn spring-boot:run
+
+# 3. Open the dashboard
+# http://localhost:8080
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Client Apps   │───▶│  Spring Boot    │───▶│     Redis       │
-│                 │    │   Application   │    │   Job Queues    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │                        │
-                              ▼                        ▼
-                       ┌─────────────────┐    ┌─────────────────┐
-                       │   Dead Letter   │    │   Rate Limit    │
-                       │      Queue       │    │     Store       │
-                       └─────────────────┘    └─────────────────┘
+
+### Without Docker (requires PostgreSQL and Redis)
+
+```bash
+# Set up PostgreSQL on localhost:5432, database: simplydone, user: postgres, password: postgres
+# Set up Redis on localhost:6379
+
+mvn spring-boot:run
 ```
 
-## 🚀 Quick Start
-
-### Prerequisites
-- **Java 17+**
-- **Maven 3.6+**
-- **Redis 6.0+**
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/learnerview/simplydone.git
-   cd simplydone
-   ```
-
-2. **Start Redis**
-   ```bash
-   # Using Docker (recommended)
-   docker run -d -p 6379:6379 --name redis redis:7-alpine redis-server --appendonly yes
-   
-   # Or install locally
-   # Ubuntu/Debian: sudo apt install redis-server
-   # macOS: brew install redis
-   # Windows: Download from redis.io
-   ```
-
-3. **Run the application**
-   ```bash
-   mvn spring-boot:run
-   ```
-
-4. **Verify installation**
-   ```bash
-   curl http://localhost:8080/api/admin/health
-   ```
-
-### First Job
+### Submit your first job
 
 ```bash
 curl -X POST http://localhost:8080/api/jobs \
   -H "Content-Type: application/json" \
   -d '{
-    "message": "My first job",
+    "message": "Call httpbin API",
     "priority": "HIGH",
-    "delay": 5,
-    "userId": "testuser"
+    "delay": 0,
+    "userId": "user-1",
+    "jobType": "API_CALL",
+    "parameters": {
+      "url": "https://httpbin.org/get",
+      "method": "GET"
+    }
   }'
 ```
 
-## 📚 Documentation
-
-| Document | Description |
-|----------|-------------|
-| [📖 Setup Guide](SETUP_GUIDE.md) | Complete installation and configuration guide |
-| [🔧 API Documentation](API_DOCUMENTATION.md) | Comprehensive API reference |
-| [⚡ Quick Reference](QUICK_REFERENCE.md) | Essential commands and examples |
-
-## 🔑 API Overview
-
-### Job Management
-```bash
-# Submit job
-POST /api/jobs
-
-# Get job details
-GET /api/jobs/{jobId}
-
-# Cancel job
-DELETE /api/jobs/{jobId}
-
-# Rate limit status
-GET /api/jobs/rate-limit/{userId}
+Response includes the job ID:
+```json
+{
+  "id": "job-abc123",
+  "status": "SUBMITTED",
+  "submittedAt": "2024-01-15T10:30:00Z",
+  "executeAt": "2024-01-15T10:30:00Z",
+  "message": "Job submitted successfully"
+}
 ```
 
-### Admin Operations
-```bash
-# System statistics
-GET /api/admin/stats
+## Technology stack
 
-# Queue inspection
-GET /api/admin/queues/high
-GET /api/admin/queues/low
+| Component | Version | Purpose |
+|---|---|---|
+| **Java** | 17+ | Runtime environment |
+| **Spring Boot** | 3.2.1 | Web framework, dependency injection |
+| **Spring Data Redis** | Latest | Redis client and repository abstraction |
+| **Spring Data JPA** | Latest | PostgreSQL ORM with Hibernate |
+| **PostgreSQL** | 15+ | Persistent audit trail |
+| **Redis** | 7+ | Priority queues and job state |
+| **Thymeleaf** | Latest | Server-side HTML templating |
+| **Resend** | API v1 | Transactional email delivery |
+| **Micrometer** | Latest | Metrics and observability |
 
-# Queue management
-DELETE /api/admin/queues/clear
+## Documentation
 
-# Dead letter queue
-GET /api/admin/dead-letter-queue
-POST /api/admin/dead-letter-queue/{jobId}/retry
-```
+| Document | Contents |
+|---|---|
+| [Getting Started](docs/01-getting-started.md) | Local setup, Docker, first run, verification |
+| [Web UI Guide](docs/02-web-ui-guide.md) | Dashboard, pages, job submission forms, monitoring |
+| [API Reference](docs/03-api-reference.md) | Complete REST endpoint documentation with examples |
+| [Job Types](docs/04-job-types.md) | Parameters, examples, and use cases for all 7 job types |
+| [Configuration](docs/05-configuration.md) | All configuration properties, environment variables, profiles |
+| [Deployment Guide](docs/06-deployment-guide.md) | Deploying to Render, AWS, Docker, production checklist |
+| [Architecture](docs/07-architecture.md) | System design, data flow, component interactions |
+| [Troubleshooting](docs/08-troubleshooting.md) | Common issues, debugging, health checks, logs |
 
-### Monitoring
-```bash
-# Health checks
-GET /actuator/health
+## Project structure
 
-# Metrics
-GET /actuator/metrics
-GET /actuator/prometheus
-```
-
-## 📊 Key Metrics
-
-| Metric | Description |
-|--------|-------------|
-| `job.execution.time` | Time taken to execute jobs |
-| `job.submission.time` | Time taken to submit jobs |
-| `simplydone.queue.size` | Current queue sizes |
-| `simplydone.jobs.processed` | Total jobs processed |
-| `simplydone.jobs.failed` | Total jobs failed |
-
-## ⚙️ Configuration
-
-### Application Properties
-```properties
-# Server Configuration
-server.port=8080
-
-# Redis Configuration
-spring.data.redis.host=localhost
-spring.data.redis.port=6379
-
-# Job Scheduler
-simplydone.scheduler.rate-limit.requests-per-minute=10
-simplydone.scheduler.worker.interval-ms=1000
-
-# Retry Configuration
-simplydone.retry.max-attempts=3
-simplydone.retry.backoff-multiplier=2.0
-simplydone.retry.initial-delay-seconds=5
-
-# Monitoring
-management.endpoints.web.exposure.include=health,metrics,prometheus
-```
-
-### Environment Variables
-```bash
-SERVER_PORT=8080
-REDIS_HOST=localhost
-REDIS_PORT=6379
-SPRING_PROFILES_ACTIVE=dev
-```
-
-## 🧪 Testing
-
-### Run Tests
-```bash
-# Run all tests
-mvn test
-
-# Run specific test
-mvn test -Dtest=ApiTest
-
-# Generate coverage report
-mvn jacoco:report
-```
-
-### Integration Testing
-```bash
-# Submit test job
-curl -X POST http://localhost:8080/api/jobs \
-  -H "Content-Type: application/json" \
-  -d '{"message":"Test job","priority":"HIGH","delay":5,"userId":"test"}'
-
-# Check system health
-curl http://localhost:8080/api/admin/health
-
-# View statistics
-curl http://localhost:8080/api/admin/stats
-```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Redis Connection Failed
-```bash
-# Check Redis status
-redis-cli ping
-
-# Check Redis logs
-docker logs redis
-```
-
-#### Port Already in Use
-```bash
-# Find process using port 8080
-netstat -ano | findstr :8080
-
-# Kill process
-taskkill /F /PID <PID>
-```
-
-#### Job Submission Fails
-```bash
-# Check rate limit status
-curl http://localhost:8080/api/jobs/rate-limit/testuser
-
-# Check application health
-curl http://localhost:8080/actuator/health
-```
-
-### Performance Issues
-```bash
-# Check JVM metrics
-curl http://localhost:8080/actuator/metrics/jvm.memory.used
-
-# Check queue sizes
-curl http://localhost:8080/api/admin/stats
-
-# Monitor Redis
-redis-cli monitor
-```
-
-## 🔧 Development
-
-### Project Structure
 ```
 SimplyDone/
 ├── src/main/java/com/learnerview/SimplyDone/
-│   ├── controller/          # REST controllers
-│   ├── service/            # Business logic
-│   ├── repository/         # Data access layer
-│   ├── model/              # Domain models
-│   ├── dto/                # Data transfer objects
-│   ├── exception/          # Custom exceptions
-│   ├── config/             # Configuration classes
-│   └── worker/             # Background workers
-├── src/test/               # Test classes
-├── src/main/resources/     # Configuration files
-└── docs/                   # Documentation
+│   ├── config/              Spring configuration classes
+│   ├── controller/          REST controllers, view routing
+│   ├── dto/                 Request/response DTOs
+│   ├── entity/              JPA entities (PostgreSQL schema)
+│   ├── exception/           Custom exceptions, global error handler
+│   ├── model/               Domain models, enums
+│   ├── repository/          Redis and JPA repository interfaces
+│   ├── service/             Business logic layer
+│   │   ├── impl/            Service implementations
+│   │   └── strategy/        Job execution strategies (7 types)
+│   └── worker/              Background job processing thread
+│
+├── src/main/resources/
+│   ├── static/              CSS, JavaScript assets
+│   │   ├── css/             Styling (glassmorphism, responsive)
+│   │   └── js/              Frontend scripts, API client
+│   ├── templates/           Thymeleaf HTML pages
+│   │   ├── fragments/       Reusable fragments (head, sidebar)
+│   │   └── *.html           11 user-facing pages + admin
+│   │
+│   ├── application.properties          Core configuration
+│   ├── application-local.properties    Local development profile
+│   └── application-prod.properties     Production profile (Render)
+│
+├── docs/                    Documentation
+├── scripts/                 PowerShell/Shell setup scripts
+├── Dockerfile               Multi-stage build for production
+├── docker-compose.yml       Local development services
+└── render.yaml              Render infrastructure blueprint
 ```
 
-### Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Run the test suite
-6. Submit a pull request
+## Design patterns
 
-## 📄 License
+### Strategy Pattern (Job Execution)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Each job type implements a strategy interface:
+```java
+public interface JobStrategy {
+    JobResult execute(JobRequest request);
+}
+```
 
-## 🤝 Support
+Seven implementations exist for the seven job types. When a job is dequeued, the worker looks up the appropriate strategy and executes it.
 
-- **Documentation**: [Complete Setup Guide](SETUP_GUIDE.md)
-- **Issues**: [GitHub Issues](https://github.com/learnerview/simplydone/issues)
-## 🙏 Acknowledgments
+### Repository Pattern (Data Access)
 
-- [Spring Boot](https://spring.io/projects/spring-boot) - Application framework
-- [Redis](https://redis.io/) - In-memory data structure store
-- [Micrometer](https://micrometer.io/) - Application metrics
-- [Prometheus](https://prometheus.io/) - Monitoring and alerting
+Spring Data JPA and Redis repositories provide abstraction over underlying storage:
+- `JobRepository` → PostgreSQL
+- `JobQueueRepository` → Redis sorted sets
+- `DeadLetterQueueRepository` → Redis lists
 
----
+Applications access data through repository interfaces, not raw SQL or Redis commands.
 
-**SimplyDone** - Making job scheduling simple and reliable 🚀
+### Observer Pattern (Async Events)
+
+Job events (submission, execution, failure) trigger ApplicationEvent publication. Listeners can subscribe to react to events without tight coupling.
+
+## Deployment
+
+### Local development with Docker
+```bash
+docker compose up -d
+mvn spring-boot:run
+```
+
+### Render PaaS (recommended for production)
+See [Deployment Guide](docs/06-deployment-guide.md) for step-by-step instructions. TL;DR:
+```bash
+git push                    # Push to repository
+```
+Render automatically builds from render.yaml blueprint, provisions PostgreSQL + Redis, deploys the container, and enables auto-scaling.
+
+### Self-hosted Docker
+```bash
+docker build -t simplydone .
+docker run -e SPRING_PROFILES_ACTIVE=prod \
+           -e DATABASE_URL=... \
+           -e REDIS_URL=... \
+           -p 8080:8080 \
+           simplydone
+```
+
+## Testing
+
+### Health check
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+### Run comprehensive test suite
+```powershell
+# Windows PowerShell
+.\scripts\test-comprehensive.ps1 -BaseUrl "http://localhost:8080"
+```
+
+### Run via Maven
+```bash
+mvn test
+```
+
+## Monitoring
+
+### Actuator endpoints
+- `/actuator/health` — Live readiness probe
+- `/actuator/metrics` — JVM, HTTP, database metrics
+- `/actuator/info` — Application version and environment
+
+### Dashboard metrics
+- System health (Redis, PostgreSQL connections)
+- Queue depths (HIGH and LOW priority)
+- Total jobs executed (lifetime counter)
+- Dead-letter queue size
+- Worker status and polling interval
+
+### Logs
+Check `logs_debug.txt` for application trace logs during development.
+
+## Environment variables
+
+### Required for Render/cloud deployment
+```bash
+SPRING_PROFILES_ACTIVE=prod
+DATABASE_URL=postgresql://user:password@host:5432/database
+REDIS_URL=redis://host:6379
+EMAIL_API_KEY=your_resend_api_key  # If email is enabled
+```
+
+### Optional
+```bash
+PORT=8080
+SPRING_APPLICATION_NAME=SimplyDone
+EMAIL_ENABLED=true|false
+```
+
+See [Configuration](docs/05-configuration.md) for complete reference.
+
+## Common tasks
+
+### Submit a job via curl
+```bash
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Job name","priority":"HIGH","userId":"user-1","jobType":"API_CALL","parameters":{"url":"https://api.example.com/endpoint","method":"GET"}}'
+```
+
+### Check job status
+```bash
+curl http://localhost:8080/api/jobs/job-abc123
+```
+
+### View high-priority queue
+```bash
+curl http://localhost:8080/api/admin/queues/high
+```
+
+### Retry a dead-letter job
+```bash
+curl -X POST http://localhost:8080/api/admin/dead-letter-queue/retry/job-abc123
+```
+
+### Upload a file
+- Via Web UI: Visit http://localhost:8080, drag and drop file to upload
+- Via API: See [API Reference — File Upload](docs/03-api-reference.md#file-upload-endpoints)
+
+## License
+
+SimplyDone is provided under the terms specified in the LICENSE file.
+
+## Support
+
+For questions, bug reports, or feature requests, please refer to the documentation and troubleshooting guide. Common issues are documented in [Troubleshooting](docs/08-troubleshooting.md).

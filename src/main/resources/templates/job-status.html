@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/head :: head}"></head>
+
+<body>
+    <div class="main-layout">
+        <nav th:replace="~{fragments/sidebar :: sidebar}"></nav>
+
+        <main class="main-content">
+            <header class="navbar glass-border-b">
+                <div class="breadcrumb">
+                    <span class="text-secondary">Core</span>
+                    <span class="mx-2">/</span>
+                    <span class="font-bold">Job Monitor</span>
+                </div>
+                <div class="header-actions">
+                    <button id="refreshBtn" class="btn btn-secondary">
+                        <i data-lucide="refresh-cw"></i>
+                        <span>Sync</span>
+                    </button>
+                    <a href="/" class="btn btn-primary">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span>Overview</span>
+                    </a>
+                </div>
+            </header>
+
+            <div id="jobDetails" class="mt-8 space-y-6">
+                <!-- Data will be injected here -->
+                <div class="flex items-center justify-center py-20">
+                    <i data-lucide="loader-2" class="animate-spin w-10 h-10 text-brand-500"></i>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script th:src="@{/js/modules/api.js}"></script>
+    <script th:src="@{/js/modules/theme.js}"></script>
+    <script th:src="@{/js/modules/ui.js}"></script>
+    <script>
+        function getStatusConfig(status) {
+            const configs = {
+                'PENDING': { color: 'zinc', icon: 'clock' },
+                'EXECUTED': { color: 'success', icon: 'check-circle' },
+                'FAILED': { color: 'danger', icon: 'x-circle' }
+            };
+            return configs[status] || { color: 'zinc', icon: 'help-circle' };
+        }
+
+        async function loadJobStatus() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const jobId = urlParams.get('id');
+
+            if (!jobId) {
+                document.getElementById('jobDetails').innerHTML = `
+                    <div class="glass-card text-center py-12">
+                        <i data-lucide="search-x" class="mx-auto w-12 h-12 text-secondary mb-4"></i>
+                        <h2 class="text-lg font-bold">Trace Lost</h2>
+                        <p class="text-secondary text-sm">Please provide a valid Job ID specifically in the URL.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/jobs/${jobId}`);
+                if (!response.ok) throw new Error('Job not found');
+                const result = await response.json();
+                const job = result.data || result;
+
+                const s = getStatusConfig(job.status);
+
+                document.getElementById('jobDetails').innerHTML = `
+                    <!-- Header Card -->
+                    <div class="glass-card relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-8 opacity-10">
+                            <i data-lucide="${s.icon}" class="w-24 h-24"></i>
+                        </div>
+                        <div class="flex items-start gap-6">
+                            <div class="stat-icon-wrapper ${s.color} w-16 h-16">
+                                <i data-lucide="${s.icon}" class="w-8 h-8"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between">
+                                    <h2 class="text-2xl font-bold">${job.jobType || job.type}</h2>
+                                    <span class="badge" style="background: var(--${s.color}-100); color: var(--${s.color}-700);">
+                                        ${job.status}
+                                    </span>
+                                </div>
+                                <p class="text-secondary mt-1 font-mono text-xs">REF: ${job.id}</p>
+                                <p class="text-lg mt-4 font-medium">${job.message || 'Standard execution pipeline active.'}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="content-split-grid">
+                        <section class="space-y-6">
+                            <!-- Trace Timeline -->
+                            <div class="card glass">
+                                <div class="card-title text-sm">
+                                    <i data-lucide="git-commit" class="w-4 h-4"></i>
+                                    <span>Execution Meta</span>
+                                </div>
+                                <div class="space-y-4 pt-2">
+                                    <div class="flex justify-between items-center text-sm border-b border-zinc-100/10 pb-3">
+                                        <span class="text-secondary">Assigned User</span>
+                                        <span class="font-mono">${job.userId}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-sm border-b border-zinc-100/10 pb-3">
+                                        <span class="text-secondary">Submission Time</span>
+                                        <span class="font-mono text-zinc-400">${new Date(job.submittedAt).toLocaleString()}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-sm border-b border-zinc-100/10 pb-3">
+                                        <span class="text-secondary">Priority Weight</span>
+                                        <span class="badge ${job.priority === 'HIGH' ? 'bg-danger/10 text-danger' : 'bg-brand/10 text-brand'}">
+                                            ${job.priority}
+                                        </span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-sm">
+                                        <span class="text-secondary">Retries Consumed</span>
+                                        <span class="font-bold">${job.attemptCount || 0} / ${job.maxRetries || 3}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payload -->
+                            <div class="card glass">
+                                <div class="card-title text-sm">
+                                    <i data-lucide="box" class="w-4 h-4"></i>
+                                    <span>Input Payload</span>
+                                </div>
+                                <pre class="text-xs bg-zinc-950/50 p-4 rounded-lg overflow-x-auto text-brand-300"><code>${JSON.stringify(job.parameters, null, 2)}</code></pre>
+                            </div>
+                        </section>
+
+                        <aside class="space-y-6">
+                            <!-- Results/Logs -->
+                            <div class="card glass">
+                                <div class="card-title text-sm">
+                                    <i data-lucide="terminal" class="w-4 h-4"></i>
+                                    <span>Output Log</span>
+                                </div>
+                                ${job.executionResult ? `
+                                    <pre class="text-xs bg-zinc-950/50 p-4 rounded-lg text-success-300"><code>${JSON.stringify(job.executionResult, null, 2)}</code></pre>
+                                ` : job.errorMessage ? `
+                                    <div class="p-4 bg-danger/10 border border-danger/20 rounded-lg">
+                                        <p class="text-xs text-danger font-mono">${job.errorMessage}</p>
+                                    </div>
+                                ` : `
+                                    <div class="py-12 text-center">
+                                        <p class="text-xs text-secondary italic">Awaiting completion...</p>
+                                    </div>
+                                `}
+                            </div>
+                            
+                            <!-- Control Panel -->
+                            <div class="card glass">
+                                <div class="card-title text-sm">
+                                    <i data-lucide="command" class="w-4 h-4"></i>
+                                    <span>Action Panel</span>
+                                </div>
+                                <div class="flex flex-col gap-3">
+                                    <button class="btn btn-secondary text-sm py-2" onclick="loadJobStatus()">
+                                        <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+                                        <span>Refresh Trace</span>
+                                    </button>
+                                    ${job.status === 'PENDING' ? `
+                                    <button class="btn btn-secondary text-sm py-2 text-danger hover:bg-danger/10" onclick="cancelJob('${job.id}')">
+                                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                        <span>Cancel Execution</span>
+                                    </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </aside>
+                    </div>
+                `;
+                lucide.createIcons();
+            } catch (err) {
+                UI.showToast('Failed to load status', 'error');
+            }
+        }
+
+        async function cancelJob(id) {
+            if (!confirm('Abort this job execution?')) return;
+            try {
+                await fetch(`/api/jobs/${id}`, { method: 'DELETE' });
+                UI.showToast('Job cancelled');
+                loadJobStatus();
+            } catch (err) {
+                UI.showToast('Cancel failed', 'error');
+            }
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', loadJobStatus);
+        setInterval(loadJobStatus, 5000);
+        document.addEventListener('DOMContentLoaded', loadJobStatus);
+    </script>
+</body>
+
+</html>

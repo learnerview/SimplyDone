@@ -2,7 +2,9 @@ package com.learnerview.SimplyDone.dto;
 
 import com.learnerview.SimplyDone.model.Job;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
@@ -13,6 +15,8 @@ import java.time.Instant;
  * It includes essential job information and timestamps.
  */
 @Data
+@Builder
+@NoArgsConstructor
 @AllArgsConstructor
 public class JobSubmissionResponse {
     
@@ -51,21 +55,4 @@ public class JobSubmissionResponse {
      */
     private String status;
     
-    /**
-     * Creates a response from a Job entity.
-     * 
-     * @param job the job entity to convert
-     * @return the response DTO
-     */
-    public static JobSubmissionResponse fromJob(Job job) {
-        return new JobSubmissionResponse(
-            job.getId(),
-            job.getMessage(),
-            job.getPriority().name(),
-            job.getDelaySeconds(),
-            job.getSubmittedAt(),
-            job.getExecuteAt(),
-            "Job submitted successfully"
-        );
-    }
 }

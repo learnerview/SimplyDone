@@ -1,0 +1,21 @@
+# Build output
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Logs
+*.log
+
+# Environment
+.env
+
+# Temporary files
+temp_uploads/
+tmpclaude*
+
+# OS
+.DS_Store
+Thumbs.db

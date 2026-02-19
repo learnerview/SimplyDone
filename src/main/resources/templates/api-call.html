@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/head :: head}"></head>
+
+<body>
+    <div class="main-layout">
+        <nav th:replace="~{fragments/sidebar :: sidebar}"></nav>
+
+        <main class="main-content">
+            <header class="navbar glass-border-b">
+                <div class="breadcrumb">
+                    <span class="text-secondary">Services</span>
+                    <span class="mx-2">/</span>
+                    <span class="font-bold">API Connectivity</span>
+                </div>
+            </header>
+
+            <div class="content-split-grid mt-8">
+                <!-- Form Section -->
+                <section>
+                    <div class="glass-card">
+                        <div class="card-title">
+                            <i data-lucide="globe"></i>
+                            <span>External API Hook</span>
+                        </div>
+                        <p class="text-sm text-secondary mb-6">Execute high-priority HTTP requests via SimplyDone's core
+                            engine.</p>
+
+                        <form id="apiForm" class="space-y-6">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="form-group">
+                                    <label class="nav-label p-0 lowercase mb-2">User Index</label>
+                                    <input type="text" id="userId" class="input-glass" placeholder="user-admin"
+                                        required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="nav-label p-0 lowercase mb-2">Priority</label>
+                                    <select id="priority" class="input-glass">
+                                        <option value="HIGH">High Priority</option>
+                                        <option value="LOW" selected>Low Priority</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-4 gap-4">
+                                <div class="col-span-1">
+                                    <label class="nav-label p-0 lowercase mb-2">Verb</label>
+                                    <select id="method" class="input-glass">
+                                        <option value="GET">GET</option>
+                                        <option value="POST">POST</option>
+                                        <option value="PUT">PUT</option>
+                                        <option value="PATCH">PATCH</option>
+                                        <option value="DELETE">DELETE</option>
+                                    </select>
+                                </div>
+                                <div class="col-span-3">
+                                    <label class="nav-label p-0 lowercase mb-2">Target Endpoint (URL)</label>
+                                    <input type="url" id="url" class="input-glass" placeholder="https://api.v1.com/hook"
+                                        required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="nav-label p-0 lowercase mb-2">Headers (JSON)</label>
+                                <textarea id="headers" class="input-glass" rows="3"
+                                    placeholder='{ "Authorization": "Bearer ..." }'></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="nav-label p-0 lowercase mb-2">Request Body (JSON)</label>
+                                <textarea id="body" class="input-glass" rows="6"
+                                    placeholder='{ "key": "value" }'></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-full">
+                                <i data-lucide="zap"></i>
+                                <span>Execute Pipeline</span>
+                            </button>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Info Section -->
+                <aside class="space-y-6">
+                    <div class="card glass">
+                        <div class="card-title text-sm">
+                            <i data-lucide="shield" class="w-4 h-4"></i>
+                            <span>Security & Retry</span>
+                        </div>
+                        <ul class="text-xs text-secondary space-y-2 list-disc pl-4">
+                            <li>Requests are signed via internal proxy.</li>
+                            <li>Auto-retry on 5xx errors (up to 3 times).</li>
+                            <li>Default timeout: 30 seconds.</li>
+                        </ul>
+                    </div>
+
+                    <div class="card glass">
+                        <div class="card-title text-sm">
+                            <i data-lucide="layers" class="w-4 h-4"></i>
+                            <span>Headers Tip</span>
+                        </div>
+                        <p class="text-xs text-secondary leading-relaxed">
+                            Always include <code>Content-Type: application/json</code> for POST/PUT requests to ensure
+                            correct parsing by the target server.
+                        </p>
+                    </div>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <script th:src="@{/js/modules/api.js}"></script>
+    <script th:src="@{/js/modules/theme.js}"></script>
+    <script th:src="@{/js/modules/ui.js}"></script>
+    <script>
+        document.getElementById('apiForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const originalContent = btn.innerHTML;
+
+            let headers = {};
+            try {
+                const h = document.getElementById('headers').value.trim();
+                if (h) headers = JSON.parse(h);
+            } catch (err) {
+                UI.showToast('Invalid Headers JSON', 'error');
+                return;
+            }
+
+            let body = null;
+            try {
+                const b = document.getElementById('body').value.trim();
+                if (b) body = JSON.parse(b);
+            } catch (err) {
+                UI.showToast('Invalid Body JSON', 'error');
+                return;
+            }
+
+            const formData = {
+                jobType: 'API_CALL',
+                userId: document.getElementById('userId').value,
+                priority: document.getElementById('priority').value,
+                parameters: {
+                    url: document.getElementById('url').value,
+                    method: document.getElementById('method').value,
+                    headers: headers,
+                    body: body,
+                    timeout: 30
+                }
+            };
+
+            try {
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i><span>Invoking...</span>';
+                lucide.createIcons();
+
+                await API.submitJob(formData);
+                UI.showToast('API call job scheduled', 'success');
+                e.target.reset();
+            } catch (error) {
+                UI.showToast(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+                lucide.createIcons();
+            }
+        });
+    </script>
+</body>
+
+</html>

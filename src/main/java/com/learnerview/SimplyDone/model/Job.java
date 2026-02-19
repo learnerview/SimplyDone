@@ -1,112 +1,94 @@
 package com.learnerview.SimplyDone.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Min;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
-/**
- * Represents a job in the priority scheduler system.
- * 
- * Jobs are stored in Redis sorted sets with the execution timestamp as the score.
- * This allows for efficient retrieval of jobs that are ready to be executed.
- */
+// represents a single job in the system
+// jobs are stored in redis sorted sets with the executeAt timestamp as the score
+// that way we can efficiently grab jobs that are due to run
+//
+// validation belongs on DTOs, not on the domain model (Rule 14)
+// serialization config belongs in Jackson configuration, not here
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Job {
-    
-    /**
-     * Unique identifier for the job
-     */
+
+    // auto-generated uuid so every job has a unique id
     @Builder.Default
     private String id = UUID.randomUUID().toString();
-    
-    /**
-     * The message or task to be executed
-     */
-    @NotBlank(message = "Job message cannot be blank")
+
+    // what kind of job this is - tells the executor which strategy class to use
+    private JobType jobType;
+
+    // description or content of the task
     private String message;
-    
-    /**
-     * Priority level of the job (HIGH or LOW)
-     */
-    @NotNull(message = "Job priority cannot be null")
+
+    // HIGH or LOW - affects which queue the job goes into
     private JobPriority priority;
-    
-    /**
-     * Delay in seconds before the job should be executed
-     */
-    @Min(value = 0, message = "Delay must be non-negative")
-    @JsonProperty("delay")
+
+    // how many seconds to wait before running the job (0 means run immediately)
     private int delaySeconds;
-    
-    /**
-     * Timestamp when the job was submitted
-     */
+
+    // when the job was submitted (auto-set to now)
     @Builder.Default
     private Instant submittedAt = Instant.now();
-    
-    /**
-     * Timestamp when the job should be executed
-     */
-    @NotNull
+
+    // when the job should run - this is the redis sorted set score
     private Instant executeAt;
-    
-    /**
-     * User identifier who submitted the job (for rate limiting)
-     */
-    @NotBlank(message = "User ID cannot be blank")
+
+    // who submitted this job - also used for rate limiting
     private String userId;
-    
-    /**
-     * Timestamp when the job was actually executed (null if not yet executed)
-     */
+
+    // extra data the job needs - e.g. email address, file path, api endpoint
+    private Map<String, Object> parameters;
+
+    // how long the job is allowed to run before it's killed (default 5 min)
+    @Builder.Default
+    private int timeoutSeconds = 300;
+
+    // max times to retry if the job fails (null = system default)
+    private Integer maxRetries;
+
+    // other job ids that must finish before this one starts
+    private String[] dependencies;
+
+    // when the job actually ran (null if it hasn't run yet)
     private Instant executedAt;
-    
-    /**
-     * Status of the job execution
-     */
+
+    // current state of the job - PENDING, EXECUTED, or FAILED
     @Builder.Default
     private JobStatus status = JobStatus.PENDING;
-    
-    /**
-     * Enumeration for job status
-     */
-    public enum JobStatus {
-        PENDING,    // Job is waiting to be executed
-        EXECUTED,   // Job has been successfully executed
-        FAILED      // Job execution failed
-    }
-    
-    /**
-     * Checks if the job is ready for execution based on the current time.
-     * 
-     * @return true if the job's execution time has arrived, false otherwise
-     */
+
+    // how many times we've tried running this job (starts at 0)
+    @Builder.Default
+    private int attemptCount = 0;
+
+    // whatever the job returned when it ran successfully
+    private Object executionResult;
+
+    // error details if the job failed
+    private String errorMessage;
+
+    // returns true if the job's scheduled run time has already passed
     public boolean isReadyForExecution() {
         return Instant.now().isAfter(executeAt) || Instant.now().equals(executeAt);
     }
-    
-    /**
-     * Marks the job as executed with the current timestamp.
-     */
+
+    // sets status to EXECUTED and stamps the executedAt time
     public void markAsExecuted() {
         this.executedAt = Instant.now();
         this.status = JobStatus.EXECUTED;
     }
-    
-    /**
-     * Marks the job as failed.
-     */
+
+    // marks the job as failed
     public void markAsFailed() {
         this.executedAt = Instant.now();
         this.status = JobStatus.FAILED;

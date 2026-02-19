@@ -1,0 +1,147 @@
+/* File Upload Component Styles */
+.file-upload {
+    margin: 20px 0;
+}
+
+.file-upload-zone {
+    border: 2px dashed rgba(var(--primary-rgb), 0.3);
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.02);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+}
+
+.file-upload-zone:hover {
+    border-color: rgba(var(--primary-rgb), 0.6);
+    background: rgba(var(--primary-rgb), 0.05);
+    transform: translateY(-2px);
+}
+
+.file-upload-zone.drag-over {
+    border-color: var(--primary-color);
+    background: rgba(var(--primary-rgb), 0.1);
+    border-style: solid;
+}
+
+.file-upload-zone.uploading {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.file-upload-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px;
+    opacity: 0.5;
+}
+
+.file-upload-text {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 8px;
+}
+
+.file-upload-hint {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.file-upload-input {
+    display: none;
+}
+
+.file-upload-progress {
+    margin-top: 16px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    display: none;
+}
+
+.file-upload-progress.active {
+    display: block;
+}
+
+.file-upload-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.file-upload-list {
+    margin-top: 20px;
+}
+
+.file-upload-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    animation: slideInUp 0.3s ease;
+}
+
+.file-upload-item-icon {
+    width: 24px;
+    height: 24px;
+    opacity: 0.7;
+}
+
+.file-upload-item-info {
+    flex: 1;
+}
+
+.file-upload-item-name {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
+}
+
+.file-upload-item-size {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 2px;
+}
+
+.file-upload-item-remove {
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.file-upload-item-remove:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.file-upload-item.success {
+    background: rgba(16, 185, 129, 0.1);
+    border-left: 3px solid #10b981;
+}
+
+.file-upload-item.error {
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 3px solid #ef4444;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

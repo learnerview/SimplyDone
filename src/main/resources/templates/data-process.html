@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/head :: head}"></head>
+
+<body>
+    <div class="main-layout">
+        <nav th:replace="~{fragments/sidebar :: sidebar}"></nav>
+
+        <main class="main-content">
+            <header class="navbar glass-border-b">
+                <div class="breadcrumb">
+                    <span class="text-secondary">Services</span>
+                    <span class="mx-2">/</span>
+                    <span class="font-bold">Data Management</span>
+                </div>
+            </header>
+
+            <div class="content-split-grid mt-8">
+                <!-- Form Section -->
+                <section>
+                    <div class="glass-card">
+                        <div class="card-title">
+                            <i data-lucide="database"></i>
+                            <span>Data Pipeline Job</span>
+                        </div>
+                        <p class="text-sm text-secondary mb-6">Transform, aggregate, or filter large datasets via
+                            priority background workers.</p>
+
+                        <form id="dataForm" class="space-y-6">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="form-group">
+                                    <label class="nav-label p-0 lowercase mb-2">Operator ID</label>
+                                    <input type="text" id="userId" class="input-glass" placeholder="ops-agent-1"
+                                        required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="nav-label p-0 lowercase mb-2">Priority</label>
+                                    <select id="priority" class="input-glass">
+                                        <option value="HIGH">High Priority</option>
+                                        <option value="LOW" selected>Low Priority</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="nav-label p-0 lowercase mb-2">Pipeline Operation</label>
+                                <select id="operation" class="input-glass" required>
+                                    <option value="TRANSFORM">Transform Data Columns</option>
+                                    <option value="AGGREGATE">Aggregate & Summarize</option>
+                                    <option value="FILTER">Filter & Clean</option>
+                                    <option value="MERGE">Merge Multiple Inputs</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="nav-label p-0 lowercase mb-2">Upload Input File</label>
+                                <div id="fileUploadContainer"></div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="form-group">
+                                    <label class="nav-label p-0 lowercase mb-2">Input Source Path</label>
+                                    <input type="text" id="inputFile" class="input-glass" placeholder="/raw/data.csv"
+                                        required>
+                                    <small class="text-xs text-secondary mt-1">Or upload a file above</small>
+                                </div>
+                                <div class="form-group">
+                                    <label class="nav-label p-0 lowercase mb-2">Output Target Path</label>
+                                    <input type="text" id="outputFile" class="input-glass"
+                                        placeholder="/final/clean.csv" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="nav-label p-0 lowercase mb-2">Transformation Rules (JSON)</label>
+                                <textarea id="transformRules" class="input-glass" rows="6"
+                                    placeholder='{ "map": { "old": "new" } }'></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-full">
+                                <i data-lucide="play"></i>
+                                <span>Initiate Pipeline</span>
+                            </button>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Info Section -->
+                <aside class="space-y-6">
+                    <div class="card glass">
+                        <div class="card-title text-sm">
+                            <i data-lucide="info" class="w-4 h-4"></i>
+                            <span>Operations Guide</span>
+                        </div>
+                        <ul class="text-xs text-secondary space-y-3 pl-4">
+                            <li><strong class="text-primary">TRANSFORM:</strong> Change encoding, rename columns, or map
+                                values.</li>
+                            <li><strong class="text-primary">AGGREGATE:</strong> Generate sums, averages, or counts from
+                                grouped data.</li>
+                            <li><strong class="text-primary">FILTER:</strong> Remove rows matching specific criteria
+                                strings.</li>
+                        </ul>
+                    </div>
+
+                    <div class="card glass">
+                        <div class="card-title text-sm">
+                            <i data-lucide="file-text" class="w-4 h-4"></i>
+                            <span>Schema Definition</span>
+                        </div>
+                        <p class="text-xs text-secondary leading-relaxed">
+                            Input files must be in CSV or JSON format. Use the <code>transformRules</code> field to
+                            define your schema mapping logic.
+                        </p>
+                    </div>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <script th:src="@{/js/modules/api.js}"></script>
+    <script th:src="@{/js/modules/theme.js}"></script>
+    <script th:src="@{/js/modules/ui.js}"></script>
+    <script th:src="@{/js/modules/fileUploader.js}"></script>
+    <script>
+        // Initialize file uploader
+        let fileUploader;
+        document.addEventListener('DOMContentLoaded', function() {
+            fileUploader = new FileUploader({
+                allowedTypes: ['.csv', '.json', '.txt', 'text/csv', 'application/json'],
+                maxSize: 50 * 1024 * 1024, // 50MB
+                autoPopulateField: 'inputFile',
+                onUploadSuccess: (result) => {
+                    UI.showToast(`File uploaded: ${result.fileName}`, 'success');
+                }
+            });
+            
+            const container = document.getElementById('fileUploadContainer');
+            container.appendChild(fileUploader.createUploadZone());
+        });
+
+        document.getElementById('dataForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const originalContent = btn.innerHTML;
+
+            const formData = {
+                jobType: 'DATA_PROCESS',
+                userId: document.getElementById('userId').value,
+                priority: document.getElementById('priority').value,
+                parameters: {
+                    operation: document.getElementById('operation').value,
+                    inputFile: document.getElementById('inputFile').value,
+                    outputFile: document.getElementById('outputFile').value,
+                    transformRules: document.getElementById('transformRules').value || '{}'
+                }
+            };
+
+            try {
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i><span>Processing...</span>';
+                lucide.createIcons();
+
+                await API.submitJob(formData);
+                UI.showToast('Data processing job queued', 'success');
+                e.target.reset();
+            } catch (error) {
+                UI.showToast(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+                lucide.createIcons();
+            }
+        });
+    </script>
+</body>
+
+</html>

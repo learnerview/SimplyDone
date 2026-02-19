@@ -1,0 +1,54 @@
+<section th:fragment="job-form" class="glass-card">
+    <form id="submit-job-form" class="space-y-6">
+        <!-- User ID -->
+        <div class="form-group">
+            <label>User ID</label>
+            <div class="relative">
+                <input type="text" id="user-id" class="input-glass" placeholder="e.g. user-123" required>
+            </div>
+        </div>
+
+        <!-- Job Type and Priority Grid -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="form-group">
+                <label>Job Type</label>
+                <select id="job-type" class="input-glass" required>
+                    <option value="EMAIL_SEND">📧 Email Send</option>
+                    <option value="DATA_PROCESS">⚙️ Data Processing</option>
+                    <option value="API_CALL">🌐 API Call</option>
+                    <option value="FILE_OPERATION">📁 File Operation</option>
+                    <option value="NOTIFICATION">🔔 Notification</option>
+                    <option value="REPORT_GENERATION">📊 Report Generation</option>
+                    <option value="CLEANUP">🧹 Cleanup</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Priority Level</label>
+                <select id="priority" class="input-glass" required>
+                    <option value="HIGH">⚡ High Priority</option>
+                    <option value="LOW" selected>🐢 Low Priority</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Payload -->
+        <div class="form-group">
+            <label>Payload (JSON)</label>
+            <textarea id="payload" class="input-glass" rows="8" 
+                placeholder='{ 
+  "param": "value",
+  "data": "example"
+}'></textarea>
+            <p class="text-xs text-secondary mt-2 flex items-center gap-2">
+                <i data-lucide="info" class="w-3 h-3"></i>
+                <span>Required parameters vary by job type.</span>
+            </p>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary w-full hover-lift">
+            <i data-lucide="send"></i>
+            <span>Queue Job</span>
+        </button>
+    </form>
+</section>

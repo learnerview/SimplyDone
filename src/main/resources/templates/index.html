@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/head :: head}"></head>
+
+<body>
+    <div class="main-layout">
+        <nav th:replace="~{fragments/sidebar :: sidebar}"></nav>
+
+        <main class="main-content page-enter">
+            <header class="navbar glass-border-b">
+                <div class="breadcrumb">
+                    <span class="text-secondary">Overview</span>
+                    <span class="mx-2">/</span>
+                    <span class="font-bold">Dashboard</span>
+                </div>
+
+                <div class="header-actions">
+                    <div class="glass-pill status-pill">
+                        <span class="status-indicator online pulsing"></span>
+                        <span id="redis-health">System Active</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Stats Dashboard -->
+            <div class="dashboard-grid stagger-children">
+                <!-- Total Executed Card -->
+                <div class="stat-card glass glass-hover">
+                    <div class="stat-icon-wrapper brand">
+                        <i data-lucide="check-circle-2"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-label">Total Executed</span>
+                        <h2 id="executed-count" class="stat-value">0</h2>
+                    </div>
+                    <div class="stat-trend positive">
+                        <i data-lucide="trending-up"></i>
+                        <span>Active</span>
+                    </div>
+                </div>
+
+                <!-- Rejected Jobs Card -->
+                <div class="stat-card glass glass-hover">
+                    <div class="stat-icon-wrapper danger">
+                        <i data-lucide="x-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-label">Rejected Jobs</span>
+                        <h2 id="rejected-count" class="stat-value">0</h2>
+                    </div>
+                    <div class="stat-trend">
+                        <span class="text-secondary">Monitoring</span>
+                    </div>
+                </div>
+
+                <!-- Success Rate Card -->
+                <div class="stat-card glass glass-hover">
+                    <div class="stat-icon-wrapper success">
+                        <i data-lucide="activity"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-label">Success Rate</span>
+                        <h2 id="success-rate" class="stat-value">0%</h2>
+                    </div>
+                    <div class="stat-trend positive">
+                        <i data-lucide="zap"></i>
+                        <span>Optimal</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Grid -->
+            <div class="content-split-grid mt-8">
+                <!-- Job Launcher Section -->
+                <section class="job-launcher-section fade-in-left">
+                    <div class="section-header">
+                        <h3>Quick Launch</h3>
+                        <p>Submit a new priority job to the queue</p>
+                    </div>
+                    <div th:replace="~{fragments/job-form :: job-form}"></div>
+                </section>
+
+                <!-- Live Queues Section -->
+                <!-- Live Queues Section -->
+                <section class="live-queues-section fade-in-right">
+                    <div class="section-header">
+                        <h3>Priority Queues</h3>
+                        <p>Real-time job monitoring and status</p>
+                    </div>
+                    <div th:replace="~{fragments/job-queues :: job-queues}"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+    <script th:src="@{/js/modules/api.js}"></script>
+    <script th:src="@{/js/modules/theme.js}"></script>
+    <script th:src="@{/js/modules/ui.js}"></script>
+    <script th:src="@{/js/modules/toast.js}"></script>
+    <script th:src="@{/js/modules/ui-enhancements.js}"></script>
+    <script th:src="@{/js/pages/dashboard.js}"></script>
+</body>
+
+</html>

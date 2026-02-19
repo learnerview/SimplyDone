@@ -8,37 +8,32 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 
-/**
- * Data Transfer Object for job submission requests.
- * 
- * This class represents the JSON payload expected when submitting a new job
- * through the REST API. It includes validation annotations to ensure data integrity.
- */
+// request body for POST /api/jobs
+// all fields are validated before the job is saved
 @Data
 public class JobSubmissionRequest {
     
-    /**
-     * The message or task to be executed
-     */
+    // what the job should do
     @NotBlank(message = "Job message cannot be blank")
     private String message;
     
-    /**
-     * Priority level of the job (HIGH or LOW)
-     */
+    // HIGH or LOW
     @NotNull(message = "Job priority cannot be null")
     private JobPriority priority;
     
-    /**
-     * Delay in seconds before the job should be executed
-     */
+    // seconds to wait before running (0 = run right away)
     @Min(value = 0, message = "Delay must be non-negative")
     @JsonProperty("delay")
     private int delaySeconds;
     
-    /**
-     * User identifier who is submitting the job
-     */
+    // who is submitting this (also used for rate limiting)
     @NotBlank(message = "User ID cannot be blank")
     private String userId;
+
+    // which job type to run - determines which executor strategy is used
+    @NotNull(message = "Job type cannot be null")
+    private com.learnerview.SimplyDone.model.JobType jobType;
+
+    // optional extra data the job needs (email address, file path, api url, etc.)
+    private java.util.Map<String, Object> parameters;
 }

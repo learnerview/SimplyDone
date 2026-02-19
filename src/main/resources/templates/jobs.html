@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/head :: head}"></head>
+
+<body>
+    <div class="main-layout">
+        <nav th:replace="~{fragments/sidebar :: sidebar}"></nav>
+
+        <main class="main-content">
+            <header class="navbar glass-border-b">
+                <div class="breadcrumb">
+                    <span class="text-secondary">Core</span>
+                    <span class="mx-2">/</span>
+                    <span class="font-bold">Global Queue</span>
+                </div>
+                <div class="flex gap-4">
+                    <button id="refreshBtn" class="btn btn-secondary">
+                        <i data-lucide="refresh-cw"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="mt-8 space-y-8">
+                <!-- Live Stats -->
+                <div class="stat-grid">
+                    <div class="glass-card overflow-hidden">
+                        <div class="absolute top-0 right-0 p-4 opacity-10">
+                            <i data-lucide="flame" class="w-12 h-12 text-danger"></i>
+                        </div>
+                        <div class="text-xs text-secondary uppercase font-semibold mb-1">Critical Priority</div>
+                        <div id="highQueueSize" class="text-3xl font-bold text-danger">-</div>
+                        <p class="text-[10px] text-secondary mt-2">Active in High-Speed Lane</p>
+                    </div>
+                    <div class="glass-card overflow-hidden">
+                        <div class="absolute top-0 right-0 p-4 opacity-10">
+                            <i data-lucide="clock" class="w-12 h-12 text-brand"></i>
+                        </div>
+                        <div class="text-xs text-secondary uppercase font-semibold mb-1">Standard Priority</div>
+                        <div id="lowQueueSize" class="text-3xl font-bold text-brand">-</div>
+                        <p class="text-[10px] text-secondary mt-2">Active in Background Lane</p>
+                    </div>
+                    <div class="glass-card overflow-hidden">
+                        <div class="absolute top-0 right-0 p-4 opacity-10">
+                            <i data-lucide="database" class="w-12 h-12 text-secondary"></i>
+                        </div>
+                        <div class="text-xs text-secondary uppercase font-semibold mb-1">Total Backlog</div>
+                        <div id="totalQueueSize" class="text-3xl font-bold">-</div>
+                        <p class="text-[10px] text-secondary mt-2">Aggregated across all shards</p>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <section class="glass-card">
+                    <div class="card-title text-sm mb-4">
+                        <i data-lucide="filter"></i>
+                        <span>Search & Filters</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="form-group">
+                            <label class="nav-label p-0 lowercase mb-2">Priority Tier</label>
+                            <select id="filterPriority" class="input-glass text-sm">
+                                <option value="">All Tiers</option>
+                                <option value="HIGH">High Priority</option>
+                                <option value="LOW">Low Priority</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="nav-label p-0 lowercase mb-2">User Index Identifier</label>
+                            <input type="text" id="filterUserId" class="input-glass text-sm"
+                                placeholder="e.g. user-123">
+                        </div>
+                        <div class="flex items-end">
+                            <button id="applyFilters" class="btn btn-primary w-full">
+                                <i data-lucide="search" class="w-4 h-4"></i>
+                                <span>Apply Filters</span>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Queues -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- High Priority -->
+                    <section class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="card-title text-sm">
+                                <span class="w-2 h-2 rounded-full bg-danger animate-pulse"></span>
+                                <span>Critical Queue</span>
+                            </div>
+                            <span id="highCount"
+                                class="text-[10px] bg-danger/10 text-danger px-2 py-0.5 rounded-full border border-danger/20">0
+                                active</span>
+                        </div>
+                        <div id="highPriorityJobs" class="space-y-4 min-h-[200px]">
+                            <div class="flex justify-center py-12"><i data-lucide="loader-2"
+                                    class="animate-spin text-secondary opacity-20"></i></div>
+                        </div>
+                    </section>
+
+                    <!-- Low Priority -->
+                    <section class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="card-title text-sm">
+                                <span class="w-2 h-2 rounded-full bg-brand animate-pulse"></span>
+                                <span>Standard Queue</span>
+                            </div>
+                            <span id="lowCount"
+                                class="text-[10px] bg-brand/10 text-brand px-2 py-0.5 rounded-full border border-brand/20">0
+                                active</span>
+                        </div>
+                        <div id="lowPriorityJobs" class="space-y-4 min-h-[200px]">
+                            <div class="flex justify-center py-12"><i data-lucide="loader-2"
+                                    class="animate-spin text-secondary opacity-20"></i></div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script th:src="@{/js/modules/api.js}"></script>
+    <script th:src="@{/js/modules/theme.js}"></script>
+    <script th:src="@{/js/modules/ui.js}"></script>
+    <script>
+        const getJobIcon = (type) => {
+            const icons = {
+                'EMAIL_SEND': 'mail',
+                'DATA_PROCESS': 'bar-chart-2',
+                'API_CALL': 'globe',
+                'FILE_OPERATION': 'folder',
+                'NOTIFICATION': 'bell',
+                'REPORT_GENERATION': 'file-text',
+                'CLEANUP': 'droplet'
+            };
+            return icons[type] || 'package';
+        };
+
+        const renderJobCard = (job) => `
+            <div class="glass-card hover:bg-white/[0.04] transition-all group relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-20 transition-opacity">
+                    <i data-lucide="${getJobIcon(job.jobType || job.type)}" class="w-12 h-12"></i>
+                </div>
+                <div class="flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="${getJobIcon(job.jobType || job.type)}" class="w-4 h-4 text-brand"></i>
+                            <span class="text-xs font-bold uppercase tracking-wider">${job.jobType || job.type}</span>
+                        </div>
+                        <span class="text-[10px] font-mono text-secondary">${job.id.substring(0, 8)}</span>
+                    </div>
+                    <p class="text-xs text-secondary line-clamp-1 italic">"${job.message || 'No context provided'}"</p>
+                    <div class="flex items-center justify-between pt-2 glass-border-t">
+                        <div class="flex gap-4 text-[10px] text-secondary">
+                            <span class="flex items-center gap-1"><i data-lucide="user" class="w-3 h-3"></i> ${job.userId}</span>
+                            <span class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${new Date(job.executeAt || job.submittedAt).toLocaleTimeString()}</span>
+                        </div>
+                        <a href="/job-status?id=${job.id}" class="text-[10px] text-brand hover:underline font-bold flex items-center gap-1">
+                            Details <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        async function loadJobs() {
+            try {
+                const stats = await API.getStats();
+                document.getElementById('highQueueSize').textContent = stats.highQueueSize || 0;
+                document.getElementById('lowQueueSize').textContent = stats.lowQueueSize || 0;
+                document.getElementById('totalQueueSize').textContent = stats.totalQueueSize || 0;
+
+                const highJobs = await API.getHighPriorityJobs();
+                const lowJobs = await API.getLowPriorityJobs();
+
+                document.getElementById('highCount').textContent = `${highJobs.length} active`;
+                document.getElementById('lowCount').textContent = `${lowJobs.length} active`;
+
+                const highDiv = document.getElementById('highPriorityJobs');
+                const lowDiv = document.getElementById('lowPriorityJobs');
+
+                highDiv.innerHTML = highJobs.length ? highJobs.map(renderJobCard).join('') : UI.renderEmptyState('Critical lane is clear', 1);
+                lowDiv.innerHTML = lowJobs.length ? lowJobs.map(renderJobCard).join('') : UI.renderEmptyState('Background lane is clear', 1);
+
+                lucide.createIcons();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function filterJobs() {
+            const userId = document.getElementById('filterUserId').value;
+            if (!userId) return loadJobs();
+
+            try {
+                UI.showToast('Searching records...', 'info');
+                const data = await API.getJobsByUser(userId);
+
+                document.getElementById('highPriorityJobs').innerHTML = data.highPriorityJobs.length ? data.highPriorityJobs.map(renderJobCard).join('') : UI.renderEmptyState('No matches in critical', 1);
+                document.getElementById('lowPriorityJobs').innerHTML = data.lowPriorityJobs.length ? data.lowPriorityJobs.map(renderJobCard).join('') : UI.renderEmptyState('No matches in background', 1);
+
+                lucide.createIcons();
+            } catch (error) {
+                UI.showToast('Search failed', 'error');
+            }
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            UI.showToast('Syncing queue logs...', 'info');
+            loadJobs();
+        });
+        document.getElementById('applyFilters').addEventListener('click', filterJobs);
+
+        setInterval(loadJobs, 10000);
+        loadJobs();
+    </script>
+</body>
+
+</html>

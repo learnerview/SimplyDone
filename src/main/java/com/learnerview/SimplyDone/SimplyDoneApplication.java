@@ -21,16 +21,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class SimplyDoneApplication {
 
     public static void main(String[] args) {
-        normalizeDatabaseUrl();
         SpringApplication.run(SimplyDoneApplication.class, args);
-    }
-
-    private static void normalizeDatabaseUrl() {
-        String databaseUrl = System.getenv("DATABASE_URL");
-        if (databaseUrl != null && (databaseUrl.startsWith("postgres://") || databaseUrl.startsWith("postgresql://"))) {
-            String jdbcUrl = "jdbc:postgresql://" + databaseUrl.substring(databaseUrl.indexOf("://") + 3);
-            System.setProperty("spring.datasource.url", jdbcUrl);
-            System.out.println("Normalized DATABASE_URL: " + jdbcUrl);
-        }
     }
 }

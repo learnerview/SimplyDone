@@ -61,6 +61,7 @@ public class FileUploadServiceImpl implements FileUploadService {
         result.put("size", file.getSize());
         result.put("contentType", file.getContentType());
         result.put("storedName", storeName);
+        result.put("filePath", "/api/files/download/" + fileId);
         return result;
     }
 

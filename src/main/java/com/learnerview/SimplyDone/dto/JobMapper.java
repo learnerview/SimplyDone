@@ -23,6 +23,7 @@ public final class JobMapper {
                 .userId(job.getUserId())
                 .attemptCount(job.getAttemptCount())
                 .maxRetries(job.getMaxRetries())
+                .parameters(job.getParameters())
                 .executionResult(job.getExecutionResult())
                 .errorMessage(job.getErrorMessage())
                 .build();

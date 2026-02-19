@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.Instant;
+import java.util.Map;
 
 // DTO used to send job info back to the client
 @Data
@@ -22,6 +23,7 @@ public class JobResponse {
     private String userId;
     private int attemptCount;       // how many times this job has been tried so far
     private Integer maxRetries;     // max allowed retries (null means use system default)
+    private Map<String, Object> parameters; // job-specific config parameters
     private Object executionResult; // what the job returned when it ran (null if pending/failed)
     private String errorMessage;    // error details if the job failed
 
@@ -41,6 +43,7 @@ public class JobResponse {
                 .userId(job.getUserId())
                 .attemptCount(job.getAttemptCount())
                 .maxRetries(job.getMaxRetries())
+                .parameters(job.getParameters())
                 .executionResult(job.getExecutionResult())
                 .errorMessage(job.getErrorMessage())
                 .build();

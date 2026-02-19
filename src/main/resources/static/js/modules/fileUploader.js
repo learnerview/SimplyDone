@@ -142,8 +142,9 @@ class FileUploader {
                 throw new Error(`Upload failed: ${response.statusText}`);
             }
             
-            const result = await response.json();
-            
+            const json = await response.json();
+            const result = json.data || json;
+
             // Update file info with server response
             const fileIndex = this.files.findIndex(f => f === file);
             if (fileIndex !== -1) {

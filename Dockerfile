@@ -9,6 +9,7 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
+COPY entrypoint.sh /app/entrypoint.sh
 EXPOSE 8080
 
 # Environment defaults
@@ -18,4 +19,5 @@ ENV DATABASE_PASSWORD=postgres
 ENV REDIS_URL=redis://redis:6379
 ENV PORT=8080
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+RUN chmod +x /app/entrypoint.sh
+ENTRYPOINT ["/app/entrypoint.sh"]

@@ -177,13 +177,23 @@ public class JobRepository {
     }
     
     public long getExecutedJobsCount() {
-        Long count = redisLongTemplate.opsForValue().get(executedJobsCounter);
-        return count != null ? count : 0;
+        try {
+            Long count = redisLongTemplate.opsForValue().get(executedJobsCounter);
+            return count != null ? count : 0;
+        } catch (Exception e) {
+            log.warn("Could not read executed jobs counter: {}", e.getMessage());
+            return 0;
+        }
     }
     
     public long getRejectedJobsCount() {
-        Long count = redisLongTemplate.opsForValue().get(rejectedJobsCounter);
-        return count != null ? count : 0;
+        try {
+            Long count = redisLongTemplate.opsForValue().get(rejectedJobsCounter);
+            return count != null ? count : 0;
+        } catch (Exception e) {
+            log.warn("Could not read rejected jobs counter: {}", e.getMessage());
+            return 0;
+        }
     }
     
     public boolean deleteJob(String jobId) {

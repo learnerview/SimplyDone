@@ -67,7 +67,6 @@ class JobServiceTest {
     @Test
     @DisplayName("submitJob returns response with non-null job ID")
     void submitJob_returnsJobId() {
-        when(rateLimitingService.isAllowed(anyString())).thenReturn(true);
         JobSubmissionResponse response = jobService.submitJob(buildRequest(JobPriority.HIGH, 0));
 
         assertThat(response).isNotNull();
@@ -77,7 +76,6 @@ class JobServiceTest {
     @Test
     @DisplayName("submitJob saves the job to the repository")
     void submitJob_savesJobToRepository() {
-        when(rateLimitingService.isAllowed(anyString())).thenReturn(true);
         jobService.submitJob(buildRequest(JobPriority.HIGH, 0));
 
         verify(jobRepository, times(1)).saveJob(any(Job.class));
@@ -86,7 +84,6 @@ class JobServiceTest {
     @Test
     @DisplayName("submitJob with delay schedules job in the future")
     void submitJob_withDelay_schedulesInFuture() {
-        when(rateLimitingService.isAllowed(anyString())).thenReturn(true);
         Instant before = Instant.now();
         ArgumentCaptor<Job> captor = ArgumentCaptor.forClass(Job.class);
 
@@ -99,7 +96,6 @@ class JobServiceTest {
     @Test
     @DisplayName("submitJob defaults to LOW priority when null")
     void submitJob_nullPriority_defaultsToLow() {
-        when(rateLimitingService.isAllowed(anyString())).thenReturn(true);
         JobSubmissionRequest req = buildRequest(null, 0);
         ArgumentCaptor<Job> captor = ArgumentCaptor.forClass(Job.class);
 

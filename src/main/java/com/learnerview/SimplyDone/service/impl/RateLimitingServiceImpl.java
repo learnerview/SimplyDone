@@ -6,12 +6,10 @@ import com.learnerview.SimplyDone.service.RateLimitingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 
 /**
  * Implementation of RateLimitingService.
@@ -28,29 +26,21 @@ public class RateLimitingServiceImpl implements RateLimitingService {
     public boolean isAllowed(String userId) {
         int maxRequests = schedulerProperties.getRateLimit().getRequestsPerMinute();
         String rateLimitKey = getRateLimitKey(userId);
-        
+
         try {
-            List<Object> results = redisTemplate.execute(new SessionCallback<List<Object>>() {
-                @Override
-                public List<Object> execute(org.springframework.data.redis.core.RedisOperations operations) throws org.springframework.dao.DataAccessException {
-                    operations.multi();
-                    operations.opsForValue().get(rateLimitKey);
-                    operations.opsForValue().increment(rateLimitKey);
-                    operations.expire(rateLimitKey, Duration.ofMinutes(1));
-                    return operations.exec();
-                }
-            });
-            
-            if (results != null && results.size() >= 2) {
-                Long newCount = (Long) results.get(1);
-                int requestCount = newCount != null ? newCount.intValue() : 1;
-                log.debug("Rate limit check for user {}: {}/{}", userId, requestCount, maxRequests);
-                return requestCount <= maxRequests;
+            // INCR is atomic — each call increments and returns the new counter value.
+            // On the very first request in a window (count == 1) we set a 60-second TTL
+            // so the key auto-expires at the end of the fixed minute window.
+            Long count = redisTemplate.opsForValue().increment(rateLimitKey);
+            if (count != null && count == 1) {
+                redisTemplate.expire(rateLimitKey, Duration.ofMinutes(1));
             }
-            return true;
+            int requestCount = count != null ? count.intValue() : 1;
+            log.debug("Rate limit check for user {}: {}/{}", userId, requestCount, maxRequests);
+            return requestCount <= maxRequests;
         } catch (Exception e) {
-            log.error("Rate limit check failed for user {} - denying request for safety: {}", userId, e.getMessage());
-            return false;
+            log.warn("Rate limit check failed for user {} - allowing request (Redis unavailable): {}", userId, e.getMessage());
+            return true;
         }
     }
     
@@ -71,7 +61,9 @@ public class RateLimitingServiceImpl implements RateLimitingService {
             }
             Long ttl = redisTemplate.getExpire(rateLimitKey);
             long resetTimeSeconds = ttl != null && ttl > 0 ? ttl : 60;
-            
+            // allowed = "can another request be made without exceeding the limit?"
+            // Uses < (not <=) because isAllowed() INCRs first, so at currentCount==maxRequests
+            // the next INCR would produce maxRequests+1 which is denied.
             return new RateLimitStatus(currentCount, maxRequests, resetTimeSeconds, currentCount < maxRequests);
         } catch (Exception e) {
             log.error("Error getting rate limit status for user {}: {}", userId, e.getMessage());

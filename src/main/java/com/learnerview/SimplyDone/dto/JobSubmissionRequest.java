@@ -18,7 +18,6 @@ public class JobSubmissionRequest {
     private String message;
     
     // HIGH or LOW
-    @NotNull(message = "Job priority cannot be null")
     private JobPriority priority;
     
     // seconds to wait before running (0 = run right away)

@@ -1,90 +1,167 @@
 # Getting Started with SimplyDone
 
-This guide provides a comprehensive overview of the setup and initialization process for the SimplyDone Priority Job Scheduler.
+This guide walks through every step required to get SimplyDone running locally and to verify each component of the system is working correctly.
+
+---
 
 ## System Prerequisites
 
-| Requirement | Version | Validation Command | Notes |
-|---|---|---|---|
-| Java | 17+ | `java -version` | Core execution environment |
-| Maven | 3.8+ | `mvn -version` | Build and dependency management |
-| Docker | 24+ | `docker --version` | Container runtime for infrastructure |
-| Docker Compose | 2.0+ | `docker compose version` | Infrastructure orchestration |
+| Requirement | Minimum Version | Check Command |
+|---|---|---|
+| Java | 17 | `java -version` |
+| Maven | 3.8 | `mvn -version` |
+| Docker | 24 | `docker --version` |
+| Docker Compose | 2.0 | `docker compose version` |
 
-## 1. Repository Initialization
+---
 
-Begin by cloning the source code to your local development environment:
+## Option A: Full Docker Compose Stack
+
+This option runs the application, PostgreSQL, and Redis all inside Docker. It is the quickest way to get a working environment.
+
+### Step 1: Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/learnerview/SimplyDone.git
 cd SimplyDone
 ```
 
-## 2. Infrastructure Deployment
+### Step 2: Create an Environment File
 
-SimplyDone relies on PostgreSQL for persistence and Redis for high-throughput queuing. Use the optimized `docker-compose.yml` to initialize these services:
+```bash
+cp .env.template .env
+```
+
+Open `.env` and review the defaults. To enable email sending, set `SMTP_USERNAME`, `SMTP_PASSWORD`, and `EMAIL_ENABLED=true`. For local testing without email, leave the defaults.
+
+### Step 3: Start All Services
 
 ```bash
 docker compose up -d
 ```
 
-### Service Specifications:
-- **PostgreSQL 15**: Accessible on port **5433**.
-  - Database: `simplydone`
-  - User: `postgres`
-  - Password: `postgres` (Recommend updating for production)
-- **Redis 7**: Accessible on port **6380**.
-  - High-performance transient data store.
+This starts three containers:
+- `app`: the Spring Boot application on port 8080
+- `db`: PostgreSQL 15 on port 5433
+- `redis`: Redis 7 on port 6380
 
-## 3. Application Build Process
+### Step 4: Verify All Containers Are Running
 
-Utilize Maven to compile and package the application:
+```bash
+docker compose ps
+```
+
+All three services should show a status of `running`.
+
+---
+
+## Option B: Maven with Local Infrastructure
+
+Use this approach when you need to develop and rebuild the application quickly without rebuilding the Docker image each time.
+
+### Step 1: Start Only the Infrastructure Containers
+
+```bash
+docker compose up -d db redis
+```
+
+### Step 2: Build the Application
 
 ```bash
 mvn clean install -DskipTests
 ```
 
-This process downloads all requisite dependencies from Maven Central and prepares the application JAR in the `target/` directory.
+Maven downloads all dependencies and packages the application JAR into `target/`.
 
-## 4. Execution
-
-Launch the application using the Spring Boot Maven plugin:
+### Step 3: Run the Application
 
 ```bash
 mvn spring-boot:run
 ```
 
-Upon successful initialization, the application will be accessible at `http://localhost:8080`.
+The application connects to PostgreSQL on `localhost:5433` and Redis on `localhost:6380` (the ports exposed by the Docker containers).
 
-## 5. System Verification
+---
 
-### Dashboard Access
-Navigate to `http://localhost:8080` to access the real-time monitoring dashboard.
+## Verifying the Installation
 
-### Health Audit
-Verify system integrity via the actuator endpoint:
+### Health Check
+
 ```bash
-curl http://localhost:8080/actuator/health
+curl http://localhost:8080/api/jobs/health
 ```
 
-### Initial Job Submission
-Submit a test job to verify the end-to-end pipeline:
+Expected response:
+
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Job service is operational and ready to accept jobs",
+  "path": "/api/jobs/health",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### Dashboard
+
+Open `http://localhost:8080` in a browser. You should see the job submission form and two empty priority queues.
+
+### Submit a Test Job
+
+The following command submits an API_CALL job that will execute immediately. Because external network access may be restricted in your environment, this job may fail — that is expected and demonstrates the error reporting pipeline correctly.
+
 ```bash
 curl -X POST http://localhost:8080/api/jobs \
   -H "Content-Type: application/json" \
   -d '{
-    "message": "System verification job",
-    "priority": "HIGH",
-    "userId": "admin",
+    "userId": "test-user",
     "jobType": "API_CALL",
+    "priority": "HIGH",
+    "message": "Verify the API_CALL strategy",
+    "delay": 2,
     "parameters": {
       "url": "https://httpbin.org/get",
-      "method": "GET"
+      "method": "GET",
+      "expectedStatus": 200
     }
   }'
 ```
 
+Note the `id` field in the response, then poll the job status:
+
+```bash
+curl http://localhost:8080/api/jobs/<id-from-above>
+```
+
+The `status` field transitions from `PENDING` to `EXECUTED` (on success) or `FAILED` (on error).
+
+### Submit an Immediate File Operation (no network required)
+
+```bash
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "test-user",
+    "jobType": "FILE_OPERATION",
+    "priority": "HIGH",
+    "message": "Create a test directory",
+    "delay": 0,
+    "parameters": {
+      "operation": "CREATE_DIRECTORY",
+      "source": "/tmp/simplydone-test"
+    }
+  }'
+```
+
+After a few seconds, the job status endpoint should show `"status": "EXECUTED"` and the directory `/tmp/simplydone-test` should exist on the host running the application.
+
+---
+
 ## Next Steps
-- Consult the [REST API Reference](REST_API_REFERENCE.md) for endpoint details.
-- Review the [User Interface Guide](USER_INTERFACE_GUIDE.md) for dashboard operations.
-- Reference the [System Configuration](SYSTEM_CONFIGURATION.md) for environment tuning.
+
+- [REST API Reference](REST_API_REFERENCE.md) - full endpoint documentation with request/response shapes
+- [User Interface Guide](USER_INTERFACE_GUIDE.md) - walkthrough of every page in the web interface
+- [System Configuration](SYSTEM_CONFIGURATION.md) - all configurable properties and their defaults
+- [Job Type Catalog](JOB_TYPE_CATALOG.md) - parameters supported by each job type
+

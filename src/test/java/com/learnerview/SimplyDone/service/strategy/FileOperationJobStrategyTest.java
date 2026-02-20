@@ -108,6 +108,20 @@ class FileOperationJobStrategyTest {
     }
 
     @Test
+    @DisplayName("execute CREATE_DIRECTORY works when only 'source' is provided (no 'target')")
+    void execute_createDirectory_withSourceOnly_createsDir(@TempDir Path tempDir) throws Exception {
+        Path newDir = tempDir.resolve("src-only-dir");
+        Job job = buildJob(Map.of(
+                "operation", "CREATE_DIRECTORY",
+                "source", newDir.toString()
+        ));
+
+        strategy.execute(job);
+
+        assertThat(Files.isDirectory(newDir)).isTrue();
+    }
+
+    @Test
     @DisplayName("execute COPY copies source file to target")
     void execute_copy_copiesFile(@TempDir Path tempDir) throws Exception {
         Path source = tempDir.resolve("source.txt");

@@ -60,7 +60,7 @@ public class FileOperationJobStrategy implements JobExecutionStrategy {
                     unzipFiles(sourcePath, targetPath);
                     break;
                 case "CREATE_DIRECTORY":
-                    createDirectory(targetPath);
+                    createDirectory(targetPath != null ? targetPath : sourcePath);
                     break;
                 case "LIST":
                     listFiles(sourcePath);

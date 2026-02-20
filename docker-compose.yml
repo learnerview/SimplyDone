@@ -6,12 +6,12 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DATABASE_URL=jdbc:postgresql://db:5432/simplydone
-      - DATABASE_USER=postgres
-      - DATABASE_PASSWORD=postgres
+      # entrypoint.sh parses postgresql:// URLs into SPRING_DATASOURCE_* variables.
+      # Do NOT use the jdbc: prefix here; that format is only for the SPRING_DATASOURCE_URL override.
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/simplydone
       - REDIS_URL=redis://redis:6379
-      - SMTP_USERNAME=${SMTP_USERNAME}
-      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
     depends_on:
       - db
       - redis

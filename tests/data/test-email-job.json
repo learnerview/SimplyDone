@@ -1,0 +1,14 @@
+{
+  "message": "Test email job",
+  "priority": "HIGH",
+  "delaySeconds": 0,
+  "userId": "testuser",
+  "jobType": "EMAIL_SEND",
+  "parameters": {
+    "to": "sumit033345@gmail.com",
+    "subject": "SimplyDone Test Email",
+    "body": "<h1>Hello from SimplyDone!</h1><p>This is a test email.</p>",
+    "senderEmail": "sumit033345@gmail.com",
+    "senderPassword": "uwmk ynaf qhbp rlxf"
+  }
+}

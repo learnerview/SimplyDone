@@ -83,12 +83,21 @@ public class JobServiceImpl implements JobService {
                     // Actually execute the job task via the executor
                     jobExecutor.execute(job);
                     
+                    // Mark job as successfully executed
+                    job.setStatus(com.learnerview.SimplyDone.model.JobStatus.EXECUTED);
+                    job.setExecutedAt(Instant.now());
+                    
                     jobRepository.incrementExecutedJobsCounter();
                     jobRepository.updateJobStatus(job); // Persist EXECUTED status
                     retryService.resetRetryAttempts(job.getId());
                     return true;
                 } catch (Exception e) {
                     log.error("Failed to execute job {}: {}", job.getId(), e.getMessage());
+                    
+                    // Mark job as failed before retry handling
+                    job.setStatus(com.learnerview.SimplyDone.model.JobStatus.FAILED);
+                    job.setErrorMessage(e.getMessage());
+                    
                     retryService.retryJob(job, e);
                     jobRepository.updateJobStatus(job); // Persist FAILED (or retrying) status
                     return false;

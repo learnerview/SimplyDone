@@ -22,10 +22,13 @@ services:
     name: simplydone-cache
     plan: free
     ipAllowList:
-      - source: 10.0.0.0/8  # Render internal network
+      - service: simplydone-app
 
 databases:
   - name: simplydone-db
+    databaseName: simplydone_db
+    user: simplydone_db_user
+    region: oregon
     plan: free
     ipAllowList:
-      - source: 10.0.0.0/8  # Render internal network
+      - service: simplydone-app

@@ -22,7 +22,7 @@ services:
     name: simplydone-cache
     plan: free
     ipAllowList:
-      - service: simplydone-app
+      - source: 0.0.0.0/0
 
 databases:
   - name: simplydone-db
@@ -31,4 +31,4 @@ databases:
     region: oregon
     plan: free
     ipAllowList:
-      - service: simplydone-app
+      - source: 0.0.0.0/0

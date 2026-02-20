@@ -52,11 +52,12 @@
                                         <option value="HTML">HTML (Web)</option>
                                         <option value="CSV">CSV (Flat)</option>
                                         <option value="JSON">JSON (Object)</option>
+                                        <option value="TXT">TXT (Plain Text)</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label class="nav-label p-0 lowercase mb-2">Layout Template</label>
-                                    <input type="text" id="template" class="input-glass" placeholder="corporate-v2">
+                                    <label class="nav-label p-0 lowercase mb-2">Report Title</label>
+                                    <input type="text" id="title" class="input-glass" placeholder="Quarterly Earnings Report">
                                 </div>
                             </div>
 
@@ -67,10 +68,20 @@
                             </div>
 
                             <div class="form-group">
+                                <label class="nav-label p-0 lowercase mb-2">Report Type</label>
+                                <input type="text" id="reportType" class="input-glass" placeholder="GENERIC">
+                            </div>
+
+                            <div class="form-group">
                                 <label class="nav-label p-0 lowercase mb-2">Payload Data (JSON)</label>
                                 <textarea id="data" class="input-glass font-mono resize-y" rows="8"
-                                    placeholder='{"title": "Quarterly Earnings", "kpis": [10.5, 22.1]}'
+                                    placeholder='[{"metric": "Revenue", "value": 10.5}, {"metric": "Growth", "value": 22.1}]'
                                     required></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="nav-label p-0 lowercase mb-2">Schedule Delay (seconds)</label>
+                                <input type="number" id="delay" class="input-glass" min="0" value="0" placeholder="0 = immediate">
                             </div>
 
                             <button type="submit" class="btn btn-primary w-full">
@@ -132,11 +143,13 @@
                 userId: document.getElementById('userId').value,
                 message: 'Report generation: ' + document.getElementById('format').value,
                 priority: document.getElementById('priority').value,
+                delay: parseInt(document.getElementById('delay').value) || 0,
                 parameters: {
                     format: document.getElementById('format').value,
                     outputPath: document.getElementById('outputPath').value,
                     data: data,
-                    template: document.getElementById('template').value || null
+                    title: document.getElementById('title').value || null,
+                    reportType: document.getElementById('reportType').value || null
                 }
             };
 

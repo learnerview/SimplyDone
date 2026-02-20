@@ -1,0 +1,18 @@
+{
+  "message": "Test report generation job",
+  "priority": "HIGH",
+  "delaySeconds": 0,
+  "userId": "testuser",
+  "jobType": "REPORT_GENERATION",
+  "parameters": {
+    "format": "CSV",
+    "outputPath": "tests/data/generated-report.csv",
+    "reportType": "GENERIC",
+    "title": "Test Report",
+    "data": [
+      {"name": "Alice", "score": 95, "grade": "A"},
+      {"name": "Bob", "score": 82, "grade": "B"},
+      {"name": "Charlie", "score": 71, "grade": "C"}
+    ]
+  }
+}

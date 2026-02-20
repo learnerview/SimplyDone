@@ -45,6 +45,12 @@
             <input type="text" id="message" class="input-glass" placeholder="e.g. Process monthly analytics" required>
         </div>
 
+        <div class="form-group">
+            <label>Schedule Delay (seconds)</label>
+            <input type="number" id="delay" class="input-glass" min="0" value="0" placeholder="0 = execute immediately">
+            <small class="text-xs text-secondary">0 = run immediately, or set seconds to delay execution</small>
+        </div>
+
         <!-- Dynamic Parameters Section -->
         <div id="dynamic-params" class="p-4 rounded-xl bg-zinc-900/40 border border-zinc-800/50 space-y-4">
             
@@ -78,7 +84,7 @@
                     <select name="operation" class="input-glass">
                         <option value="AGGREGATE">Aggregate (Sum/Avg)</option>
                         <option value="TRANSFORM">Transform Columns</option>
-                        <option value="FILTER">Filter Rows</option>
+                        <option value="VALIDATE">Validate Data</option>
                     </select>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
@@ -107,12 +113,14 @@
                         <option value="GET">GET</option>
                         <option value="POST">POST</option>
                         <option value="PUT">PUT</option>
+                        <option value="PATCH">PATCH</option>
+                        <option value="DELETE">DELETE</option>
                     </select>
                     <input type="number" name="expectedStatus" class="input-glass" value="200">
                 </div>
                 <div class="form-group">
                     <label>Request JSON (Optional)</label>
-                    <textarea name="payload" class="input-glass text-xs h-24" placeholder="{ 'key': 'value' }"></textarea>
+                    <textarea name="body" class="input-glass text-xs h-24" placeholder="{ &quot;key&quot;: &quot;value&quot; }"></textarea>
                 </div>
             </div>
 
@@ -121,10 +129,13 @@
                 <div class="form-group">
                     <label>File Action</label>
                     <select name="operation" class="input-glass">
+                        <option value="COPY">Copy Files</option>
+                        <option value="MOVE">Move Files</option>
+                        <option value="DELETE">Delete Files</option>
                         <option value="ZIP">Zip Archives</option>
                         <option value="UNZIP">Unzip Archives</option>
-                        <option value="COPY">Copy Files</option>
-                        <option value="DELETE">Delete Files</option>
+                        <option value="CREATE_DIRECTORY">Create Directory</option>
+                        <option value="LIST">List Contents</option>
                     </select>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
@@ -141,6 +152,8 @@
                         <option value="WEBHOOK">Generic Webhook</option>
                         <option value="SLACK">Slack Hook</option>
                         <option value="DISCORD">Discord Bot</option>
+                        <option value="TEAMS">Microsoft Teams</option>
+                        <option value="TELEGRAM">Telegram</option>
                     </select>
                 </div>
                 <input type="url" name="webhookUrl" class="input-glass text-xs" placeholder="https://webhook.site/...">
@@ -155,7 +168,9 @@
                         <option value="HTML">HTML Ready</option>
                         <option value="CSV">CSV Dump</option>
                         <option value="JSON">Raw JSON</option>
+                        <option value="TXT">Plain Text</option>
                         <option value="PDF">PDF (Enterprise)</option>
+                        <option value="EXCEL">Excel (XLSX)</option>
                     </select>
                     <input type="text" name="title" class="input-glass" placeholder="Report Title">
                 </div>
@@ -171,14 +186,19 @@
                 <div class="form-group">
                     <label>Cleanup Policy</label>
                     <select name="operation" class="input-glass">
-                        <option value="DELETE_BY_PATTERN">Delete by Pattern (*.log)</option>
-                        <option value="PURGE_DIRECTORY">Purge Entire Directory</option>
-                        <option value="EXPIRE_FILES">Expire Old Files</option>
+                        <option value="DELETE_OLD_FILES">Delete Old Files</option>
+                        <option value="CLEAR_DIRECTORY">Clear Directory</option>
+                        <option value="CLEAR_TEMP">Clear Temp Files</option>
+                        <option value="ARCHIVE_OLD_FILES">Archive Old Files</option>
+                        <option value="DELETE_BY_PATTERN">Delete by Pattern</option>
+                        <option value="CLEANUP_LOGS">Cleanup Logs</option>
+                        <option value="PURGE_CACHE">Purge Cache</option>
                     </select>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-3 gap-2">
                     <input type="text" name="directory" class="input-glass text-xs" placeholder="/var/logs">
-                    <input type="text" name="pattern" class="input-glass text-xs" value="*.log">
+                    <input type="number" name="olderThanDays" class="input-glass text-xs" value="30" min="0" placeholder="Days">
+                    <input type="text" name="pattern" class="input-glass text-xs" placeholder="*.log">
                 </div>
             </div>
         </div>

@@ -73,6 +73,11 @@
                                     placeholder='{ "key": "value" }'></textarea>
                             </div>
 
+                            <div class="form-group">
+                                <label class="nav-label p-0 lowercase mb-2">Schedule Delay (seconds)</label>
+                                <input type="number" id="delay" class="input-glass" min="0" value="0" placeholder="0 = immediate">
+                            </div>
+
                             <button type="submit" class="btn btn-primary w-full">
                                 <i data-lucide="zap"></i>
                                 <span>Execute Pipeline</span>
@@ -142,12 +147,12 @@
                 userId: document.getElementById('userId').value,
                 message: document.getElementById('method').value + ' ' + document.getElementById('url').value,
                 priority: document.getElementById('priority').value,
+                delay: parseInt(document.getElementById('delay').value) || 0,
                 parameters: {
                     url: document.getElementById('url').value,
                     method: document.getElementById('method').value,
                     headers: headers,
-                    body: body,
-                    timeout: 30
+                    body: body
                 }
             };
 

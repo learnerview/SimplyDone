@@ -1,0 +1,13 @@
+{
+  "message": "Test notification job",
+  "priority": "HIGH",
+  "delaySeconds": 0,
+  "userId": "testuser",
+  "jobType": "NOTIFICATION",
+  "parameters": {
+    "channel": "WEBHOOK",
+    "webhookUrl": "https://httpbin.org/post",
+    "message": "Hello from SimplyDone!",
+    "title": "Test Notification"
+  }
+}

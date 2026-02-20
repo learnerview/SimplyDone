@@ -1,0 +1,12 @@
+{
+  "message": "Test file operation job",
+  "priority": "HIGH",
+  "delaySeconds": 0,
+  "userId": "testuser",
+  "jobType": "FILE_OPERATION",
+  "parameters": {
+    "operation": "COPY",
+    "source": "tests/data/file1.txt",
+    "target": "tests/data/file1_copy.txt"
+  }
+}

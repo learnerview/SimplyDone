@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const value = input.type === 'checkbox' ? input.checked : input.value;
                         if (value !== "" && value !== null) {
                             // Try to parse JSON if the field looks like it
-                            if (input.name === 'payload' || input.name === 'data' || input.name === 'transformRules') {
+                            if (input.name === 'body' || input.name === 'data' || input.name === 'transformRules') {
                                 try {
                                     parameters[input.name] = JSON.parse(value);
                                 } catch (e) {
@@ -138,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 userId: userId,
                 jobType: jobType,
                 priority: priority,
+                delay: parseInt(document.getElementById('delay')?.value) || 0,
                 parameters: parameters,
                 message: message || `Manual submission of ${jobType}`
             };

@@ -62,10 +62,20 @@
                                     placeholder="Hello, your report is ready..." required></textarea>
                             </div>
 
-                            <div class="flex items-center gap-2">
-                                <input type="checkbox" id="isHtml"
-                                    class="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-brand-600 focus:ring-brand-500">
-                                <label for="isHtml" class="text-sm cursor-pointer">Rendering as HTML</label>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="form-group">
+                                    <label class="nav-label p-0 lowercase mb-2">Sender Email (Optional)</label>
+                                    <input type="email" id="senderEmail" class="input-glass" placeholder="Custom sender email">
+                                </div>
+                                <div class="form-group">
+                                    <label class="nav-label p-0 lowercase mb-2">App Password (Optional)</label>
+                                    <input type="password" id="senderPassword" class="input-glass" placeholder="SMTP app password">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="nav-label p-0 lowercase mb-2">Schedule Delay (seconds)</label>
+                                <input type="number" id="delay" class="input-glass" min="0" value="0" placeholder="0 = immediate">
                             </div>
 
                             <button type="submit" class="btn btn-primary w-full">
@@ -85,7 +95,7 @@
                         </div>
                         <ul class="text-xs text-secondary space-y-2 list-disc pl-4">
                             <li>Uses Gmail SMTP for reliable delivery.</li>
-                            <li>Configured with <code>sumit033345@gmail.com</code>.</li>
+                            <li>Custom sender credentials supported.</li>
                             <li>HTML and Plain Text support enabled.</li>
                         </ul>
                     </div>
@@ -127,11 +137,13 @@
                 userId: document.getElementById('userId').value,
                 message: 'Email to ' + document.getElementById('emailTo').value,
                 priority: document.getElementById('priority').value,
+                delay: parseInt(document.getElementById('delay').value) || 0,
                 parameters: {
                     to: document.getElementById('emailTo').value,
                     subject: document.getElementById('subject').value,
                     body: document.getElementById('body').value,
-                    isHtml: document.getElementById('isHtml').checked
+                    senderEmail: document.getElementById('senderEmail').value || null,
+                    senderPassword: document.getElementById('senderPassword').value || null
                 }
             };
 

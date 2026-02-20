@@ -48,8 +48,7 @@
                                 <select id="operation" class="input-glass" required>
                                     <option value="TRANSFORM">Transform Data Columns</option>
                                     <option value="AGGREGATE">Aggregate & Summarize</option>
-                                    <option value="FILTER">Filter & Clean</option>
-                                    <option value="MERGE">Merge Multiple Inputs</option>
+                                    <option value="VALIDATE">Validate & Check</option>
                                 </select>
                             </div>
 
@@ -78,6 +77,11 @@
                                     placeholder='{ "map": { "old": "new" } }'></textarea>
                             </div>
 
+                            <div class="form-group">
+                                <label class="nav-label p-0 lowercase mb-2">Schedule Delay (seconds)</label>
+                                <input type="number" id="delay" class="input-glass" min="0" value="0" placeholder="0 = immediate">
+                            </div>
+
                             <button type="submit" class="btn btn-primary w-full">
                                 <i data-lucide="play"></i>
                                 <span>Initiate Pipeline</span>
@@ -98,8 +102,8 @@
                                 values.</li>
                             <li><strong class="text-primary">AGGREGATE:</strong> Generate sums, averages, or counts from
                                 grouped data.</li>
-                            <li><strong class="text-primary">FILTER:</strong> Remove rows matching specific criteria
-                                strings.</li>
+                            <li><strong class="text-primary">VALIDATE:</strong> Verify data integrity and schema
+                                compliance.</li>
                         </ul>
                     </div>
 
@@ -149,6 +153,7 @@
                 userId: document.getElementById('userId').value,
                 message: 'Data processing: ' + document.getElementById('operation').value,
                 priority: document.getElementById('priority').value,
+                delay: parseInt(document.getElementById('delay').value) || 0,
                 parameters: {
                     operation: document.getElementById('operation').value,
                     inputFile: document.getElementById('inputFile').value,

@@ -1,0 +1,12 @@
+{
+  "message": "Test API call job",
+  "priority": "HIGH",
+  "delaySeconds": 0,
+  "userId": "testuser",
+  "jobType": "API_CALL",
+  "parameters": {
+    "url": "https://httpbin.org/get",
+    "method": "GET",
+    "maxRetries": 1
+  }
+}

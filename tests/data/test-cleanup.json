@@ -1,0 +1,12 @@
+{
+  "message": "Test cleanup job",
+  "priority": "LOW",
+  "delaySeconds": 0,
+  "userId": "testuser",
+  "jobType": "CLEANUP",
+  "parameters": {
+    "operation": "DELETE_OLD_FILES",
+    "directory": "tests/data/cleanup-test",
+    "olderThanDays": 30
+  }
+}

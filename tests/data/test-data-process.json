@@ -1,0 +1,11 @@
+{
+  "message": "Test data processing job",
+  "priority": "HIGH",
+  "delaySeconds": 0,
+  "userId": "testuser",
+  "jobType": "DATA_PROCESS",
+  "parameters": {
+    "operation": "VALIDATE",
+    "inputFile": "tests/data/test.csv"
+  }
+}

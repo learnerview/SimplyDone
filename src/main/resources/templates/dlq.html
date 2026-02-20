@@ -88,10 +88,10 @@
                                         <div class="font-bold text-lg">${job.jobType}</div>
                                         <div class="text-sm text-secondary font-mono mb-2">${job.id}</div>
                                         <div class="text-xs text-danger-400 font-medium mb-1">
-                                            Last Error: ${job.lastError || 'Unknown failure'}
+                                            Last Error: ${job.failureReason || 'Unknown failure'}
                                         </div>
                                         <div class="text-xs text-tertiary">
-                                            Failed at: ${new Date(job.failedAt).toLocaleString()}
+                                            Failed at: ${job.failureTimestamp ? new Date(job.failureTimestamp).toLocaleString() : 'N/A'}
                                         </div>
                                     </div>
                                 </div>

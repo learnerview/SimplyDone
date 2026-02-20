@@ -49,8 +49,8 @@ public class RateLimitingServiceImpl implements RateLimitingService {
             }
             return true;
         } catch (Exception e) {
-            log.error("Rate limit check failed for user {} - denying request for safety: {}", userId, e.getMessage());
-            return false;
+            log.warn("Rate limit check failed for user {} - allowing request (Redis unavailable): {}", userId, e.getMessage());
+            return true;
         }
     }
     

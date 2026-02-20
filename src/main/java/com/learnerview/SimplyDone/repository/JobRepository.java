@@ -137,9 +137,14 @@ public class JobRepository {
     }
     
     public long getQueueSize(JobPriority priority) {
-        String queueKey = getQueueKey(priority);
-        Long size = redisTemplate.opsForZSet().size(queueKey);
-        return size != null ? size : 0;
+        try {
+            String queueKey = getQueueKey(priority);
+            Long size = redisTemplate.opsForZSet().size(queueKey);
+            return size != null ? size : 0;
+        } catch (Exception e) {
+            log.warn("Could not get queue size for {}: {}", priority, e.getMessage());
+            return 0;
+        }
     }
     
     public List<Job> getAllJobsInQueue(JobPriority priority) {

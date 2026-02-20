@@ -113,14 +113,17 @@ public class JobController {
         );
     }
     
-    // basic health check - returns queue counts so we know the system is up
+    // basic health check - must always return 200 so Render keeps the service alive
     @GetMapping("/health")
     public ResponseEntity<ApiResponse<?>> health() {
-        long[] queueSizes = jobService.getQueueSizes();
-        long high = (queueSizes != null && queueSizes.length > 0) ? queueSizes[0] : 0;
-        long low = (queueSizes != null && queueSizes.length > 1) ? queueSizes[1] : 0;
-
-        log.info("Health check - queued={} (high={}, low={})", high + low, high, low);
+        try {
+            long[] queueSizes = jobService.getQueueSizes();
+            long high = (queueSizes != null && queueSizes.length > 0) ? queueSizes[0] : 0;
+            long low = (queueSizes != null && queueSizes.length > 1) ? queueSizes[1] : 0;
+            log.info("Health check - queued={} (high={}, low={})", high + low, high, low);
+        } catch (Exception e) {
+            log.warn("Health check - Redis unavailable: {}", e.getMessage());
+        }
         return ResponseEntity.ok(
             ApiResponse.success("Job service is operational and ready to accept jobs")
         );

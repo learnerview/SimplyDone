@@ -41,8 +41,9 @@ public class SmtpEmailService {
      */
     public Map<String, Object> sendEmail(String to, String subject, String body, 
                                         String customSender, String customPassword) throws MessagingException {
-        if (!emailEnabled && customSender == null) {
-            log.warn("Email dispatch skipped to {}: Service is explicitly disabled and no custom sender provided.", to);
+        boolean defaultSenderConfigured = defaultFromAddress != null && !defaultFromAddress.trim().isEmpty();
+        if (!emailEnabled && !defaultSenderConfigured && customSender == null) {
+            log.warn("Email dispatch skipped to {}: Service is explicitly disabled and no SMTP credentials or custom sender provided.", to);
             return Map.of(
                 "success", false,
                 "message", "Email service is disabled in configuration",

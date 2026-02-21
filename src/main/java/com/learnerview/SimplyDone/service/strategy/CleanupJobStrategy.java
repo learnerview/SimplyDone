@@ -86,8 +86,8 @@ public class CleanupJobStrategy implements JobExecutionStrategy {
             throw new IllegalArgumentException("Cleanup 'operation' is required");
         }
 
-        // Most operations require a directory path
-        if (!operation.equalsIgnoreCase("PURGE_CACHE")) {
+        // Most operations require a directory path; PURGE_CACHE and CLEAR_TEMP handle their own paths
+        if (!operation.equalsIgnoreCase("PURGE_CACHE") && !operation.equalsIgnoreCase("CLEAR_TEMP")) {
             String directory = (String) params.get("directory");
             if (directory == null || directory.trim().isEmpty()) {
                 throw new IllegalArgumentException("Cleanup 'directory' is required");

@@ -157,8 +157,11 @@
                 btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i><span>Purging...</span>';
                 lucide.createIcons();
 
-                await API.submitJob(formData);
+                const result = await API.submitJob(formData);
                 UI.showToast('Cleanup pipeline activated', 'success');
+                if (result && result.id) {
+                    window.location.href = `/job-status?id=${result.id}`;
+                }
                 e.target.reset();
             } catch (error) {
                 UI.showToast(error.message, 'error');

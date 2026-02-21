@@ -1,5 +1,6 @@
 package com.learnerview.SimplyDone.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.learnerview.SimplyDone.dto.JobSubmissionRequest;
 import com.learnerview.SimplyDone.dto.JobSubmissionResponse;
 import com.learnerview.SimplyDone.model.*;
@@ -47,7 +48,7 @@ class JobServiceTest {
     void setUp() {
         MeterRegistry registry = new SimpleMeterRegistry();
         Timer timer = Timer.builder("job.test.timer").register(registry);
-        jobService = new JobServiceImpl(jobRepository, rateLimitingService, retryService, jobExecutor, timer, jobExecutorFactory);
+        jobService = new JobServiceImpl(jobRepository, rateLimitingService, retryService, jobExecutor, timer, jobExecutorFactory, new ObjectMapper());
     }
 
     private JobSubmissionRequest buildRequest(JobPriority priority, int delaySeconds) {

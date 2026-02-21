@@ -151,8 +151,11 @@
                 btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i><span>Dispatching...</span>';
                 lucide.createIcons();
 
-                await API.submitJob(formData);
+                const result = await API.submitJob(formData);
                 UI.showToast('Notification scheduled', 'success');
+                if (result && result.id) {
+                    window.location.href = `/job-status?id=${result.id}`;
+                }
                 e.target.reset();
             } catch (error) {
                 UI.showToast(error.message, 'error');

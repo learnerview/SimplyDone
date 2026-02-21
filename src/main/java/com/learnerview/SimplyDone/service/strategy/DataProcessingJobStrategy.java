@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.DoubleAdder;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Strategy for executing data processing jobs.
@@ -149,8 +150,12 @@ public class DataProcessingJobStrategy implements JobExecutionStrategy {
         Path inputPath = Paths.get(inputFile);
         
         try (Stream<String> lines = Files.lines(inputPath)) {
-            // Read header to find indices
-            String header = Files.lines(inputPath).findFirst().orElseThrow(() -> new IOException("Empty file"));
+            // Consume the header from the same stream so we never open the file twice
+            java.util.Iterator<String> iterator = lines.iterator();
+            if (!iterator.hasNext()) {
+                throw new IOException("Empty file: " + inputFile);
+            }
+            String header = iterator.next();
             String[] headers = header.split(",");
             
             int groupByIndex = findColumnIndex(headers, groupByColumn);
@@ -162,15 +167,19 @@ public class DataProcessingJobStrategy implements JobExecutionStrategy {
             
             Map<String, DoubleAdder> aggregationMap = new ConcurrentHashMap<>();
             Map<String, AtomicInteger> countMap = new ConcurrentHashMap<>();
+            final int gbi = groupByIndex;
+            final int agi = aggregateIndex;
             
-            // Skip header and process
-            lines.skip(1).parallel().forEach(line -> {
+            // Re-wrap the remaining iterator as a parallel stream for performance
+            StreamSupport.stream(
+                    java.util.Spliterators.spliteratorUnknownSize(iterator, java.util.Spliterator.ORDERED),
+                    true
+            ).forEach(line -> {
                 String[] values = line.split(",");
-                if (values.length > Math.max(groupByIndex, aggregateIndex)) {
-                    String key = values[groupByIndex];
+                if (values.length > Math.max(gbi, agi)) {
+                    String key = values[gbi];
                     try {
-                        double value = Double.parseDouble(values[aggregateIndex]);
-                        
+                        double value = Double.parseDouble(values[agi]);
                         aggregationMap.computeIfAbsent(key, k -> new DoubleAdder()).add(value);
                         if ("AVG".equalsIgnoreCase(aggregateFunction)) {
                             countMap.computeIfAbsent(key, k -> new AtomicInteger()).incrementAndGet();

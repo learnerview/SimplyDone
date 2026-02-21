@@ -122,7 +122,27 @@
         }
 
         async function retryAll() {
-            UI.showToast('Bulk retry not yet implemented in backend core', 'warning');
+            try {
+                const response = await fetch('/api/admin/dead-letter-queue');
+                const json = await response.json();
+                const jobs = json.data || [];
+                if (jobs.length === 0) {
+                    UI.showToast('DLQ is already empty', 'info');
+                    return;
+                }
+                const results = await Promise.allSettled(
+                    jobs.map(job => {
+                        const jobId = job.originalJob ? job.originalJob.id : job.id;
+                        if (!jobId) return Promise.reject(new Error('No job ID'));
+                        return fetch(`/api/admin/dead-letter-queue/${jobId}/retry`, { method: 'POST' });
+                    })
+                );
+                const success = results.filter(r => r.status === 'fulfilled' && r.value.ok).length;
+                UI.showToast(`Retried ${success} / ${jobs.length} jobs`, 'success');
+                loadDLQ();
+            } catch (e) {
+                UI.showToast('Retry all failed: ' + e.message, 'error');
+            }
         }
 
         async function clearDLQ() {

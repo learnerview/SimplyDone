@@ -5,11 +5,14 @@ import com.learnerview.SimplyDone.dto.JobMapper;
 import com.learnerview.SimplyDone.dto.JobSubmissionRequest;
 import com.learnerview.SimplyDone.dto.JobSubmissionResponse;
 import com.learnerview.SimplyDone.dto.RateLimitStatus;
+import com.learnerview.SimplyDone.entity.JobEntity;
 import com.learnerview.SimplyDone.exception.RateLimitException;
 import com.learnerview.SimplyDone.exception.ValidationException;
 import com.learnerview.SimplyDone.model.Job;
 import com.learnerview.SimplyDone.model.JobPriority;
+import com.learnerview.SimplyDone.model.JobStatus;
 import com.learnerview.SimplyDone.model.JobType;
+import com.learnerview.SimplyDone.repository.JobEntityRepository;
 import com.learnerview.SimplyDone.repository.JobRepository;
 import com.learnerview.SimplyDone.service.JobService;
 import com.learnerview.SimplyDone.service.RateLimitingService;
@@ -20,6 +23,7 @@ import com.learnerview.SimplyDone.service.strategy.JobExecutionStrategy;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -43,6 +47,10 @@ public class JobServiceImpl implements JobService {
     private final Timer jobExecutionTimer;
     private final JobExecutorFactory jobExecutorFactory;
 
+    // optional PostgreSQL persistence – absent in unit tests, injected in production
+    @Autowired(required = false)
+    private JobEntityRepository jobEntityRepository;
+
     @Override
     public JobSubmissionResponse submitJob(JobSubmissionRequest request) {
         String jobId = UUID.randomUUID().toString();
@@ -60,6 +68,7 @@ public class JobServiceImpl implements JobService {
             .build();
 
         jobRepository.saveJob(job);
+        persistJobEntity(job);
         log.info("Job submitted: {} (type: {}, priority: {})", jobId, job.getJobType(), job.getPriority());
 
         return JobMapper.toSubmissionResponse(job);
@@ -89,6 +98,7 @@ public class JobServiceImpl implements JobService {
                     
                     jobRepository.incrementExecutedJobsCounter();
                     jobRepository.updateJobStatus(job); // Persist EXECUTED status
+                    persistJobEntity(job);
                     retryService.resetRetryAttempts(job.getId());
                     return true;
                 } catch (Exception e) {
@@ -100,6 +110,7 @@ public class JobServiceImpl implements JobService {
                     
                     retryService.retryJob(job, e);
                     jobRepository.updateJobStatus(job); // Persist FAILED (or retrying) status
+                    persistJobEntity(job);
                     return false;
                 }
             }
@@ -173,6 +184,7 @@ public class JobServiceImpl implements JobService {
                 .build();
 
         jobRepository.saveJob(job);
+        persistJobEntity(job);
         log.info("Enhanced job submitted: {} (type: {}, priority: {})", jobId, job.getJobType(), job.getPriority());
         return JobMapper.toSubmissionResponse(job);
     }
@@ -191,6 +203,33 @@ public class JobServiceImpl implements JobService {
     @Override
     public void cancelBatch(String batchId) {
         log.warn("Batch cancel requested for batchId: {} - not yet implemented", batchId);
+    }
+
+    // saves job to PostgreSQL for durable storage and historical queries
+    // non-critical: failures are logged but do not abort the request
+    private void persistJobEntity(Job job) {
+        if (jobEntityRepository == null) return;
+        try {
+            JobEntity entity = JobEntity.builder()
+                    .id(job.getId())
+                    .jobType(job.getJobType())
+                    .message(job.getMessage())
+                    .priority(job.getPriority())
+                    .delaySeconds(job.getDelaySeconds())
+                    .userId(job.getUserId())
+                    .timeoutSeconds(job.getTimeoutSeconds())
+                    .maxRetries(job.getMaxRetries())
+                    .submittedAt(job.getSubmittedAt())
+                    .executeAt(job.getExecuteAt())
+                    .executedAt(job.getExecutedAt())
+                    .status(job.getStatus() != null ? job.getStatus() : JobStatus.PENDING)
+                    .attemptCount(job.getAttemptCount())
+                    .errorMessage(job.getErrorMessage())
+                    .build();
+            jobEntityRepository.save(entity);
+        } catch (Exception e) {
+            log.warn("Failed to persist job {} to PostgreSQL: {}", job.getId(), e.getMessage());
+        }
     }
 
     private void enforceRateLimit(String userId) {

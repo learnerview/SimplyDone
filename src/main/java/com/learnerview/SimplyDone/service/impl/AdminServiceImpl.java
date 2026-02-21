@@ -3,9 +3,12 @@ package com.learnerview.SimplyDone.service.impl;
 import com.learnerview.SimplyDone.dto.JobMapper;
 import com.learnerview.SimplyDone.dto.JobResponse;
 import com.learnerview.SimplyDone.dto.RateLimitStatus;
+import com.learnerview.SimplyDone.entity.JobEntity;
 import com.learnerview.SimplyDone.model.Job;
 import com.learnerview.SimplyDone.model.JobPriority;
+import com.learnerview.SimplyDone.model.JobStatus;
 import com.learnerview.SimplyDone.model.DeadLetterJob;
+import com.learnerview.SimplyDone.repository.JobEntityRepository;
 import com.learnerview.SimplyDone.repository.JobRepository;
 import com.learnerview.SimplyDone.service.AdminService;
 import com.learnerview.SimplyDone.service.JobService;
@@ -35,6 +38,7 @@ public class AdminServiceImpl implements AdminService {
     private final JobService jobService;
     private final RetryService retryService;
     private final RateLimitingService rateLimitingService;
+    private final JobEntityRepository jobEntityRepository;
 
     @Override
     public Map<String, Object> getSystemStats() {
@@ -210,5 +214,16 @@ public class AdminServiceImpl implements AdminService {
             log.info("Job cancelled by admin: {} from {} queue", jobId, priority);
         }
         return deleted;
+    }
+
+    @Override
+    public List<JobEntity> getCompletedJobs() {
+        try {
+            return jobEntityRepository.findByStatusIn(
+                    List.of(JobStatus.EXECUTED, JobStatus.FAILED));
+        } catch (Exception e) {
+            log.error("Failed to retrieve completed jobs from PostgreSQL: {}", e.getMessage());
+            return java.util.Collections.emptyList();
+        }
     }
 }

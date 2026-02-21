@@ -22,6 +22,12 @@
                     <span>All Jobs</span>
                 </a>
             </li>
+            <li>
+                <a th:href="@{/executed-jobs}" class="nav-item" th:classappend="${currentPage == 'executed-jobs'} ? 'active' : ''">
+                    <i data-lucide="check-circle-2"></i>
+                    <span>Executed Jobs</span>
+                </a>
+            </li>
         </ul>
     </div>
 

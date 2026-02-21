@@ -2,6 +2,7 @@ package com.learnerview.SimplyDone.service;
 
 import com.learnerview.SimplyDone.dto.JobResponse;
 import com.learnerview.SimplyDone.dto.RateLimitStatus;
+import com.learnerview.SimplyDone.entity.JobEntity;
 import com.learnerview.SimplyDone.model.DeadLetterJob;
 import com.learnerview.SimplyDone.model.JobPriority;
 
@@ -45,4 +46,7 @@ public interface AdminService {
 
     // cancel a single job from a specific queue
     boolean cancelJob(String jobId, JobPriority priority);
+
+    // get all jobs that have been executed (from PostgreSQL)
+    List<JobEntity> getCompletedJobs();
 }

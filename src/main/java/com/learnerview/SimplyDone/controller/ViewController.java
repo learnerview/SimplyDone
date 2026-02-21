@@ -87,4 +87,9 @@ public class ViewController {
     public String dlq() {
         return "dlq";
     }
+
+    @GetMapping("/executed-jobs")
+    public String executedJobs() {
+        return "executed-jobs";
+    }
 }

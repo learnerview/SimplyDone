@@ -93,6 +93,7 @@ public class RetryServiceImpl implements RetryService {
     private void moveToDeadLetterQueue(Job job, Exception error) {
         try {
             DeadLetterJob deadLetterJob = new DeadLetterJob();
+            deadLetterJob.setId(java.util.UUID.randomUUID().toString());
             deadLetterJob.setOriginalJob(job);
             deadLetterJob.setFailureReason(error.getMessage());
             deadLetterJob.setFailureTimestamp(Instant.now());

@@ -21,7 +21,10 @@ public class DatabaseDebugConfig {
 
     @EventListener(ApplicationReadyEvent.class)
     public void logDatabaseInfo() {
-        log.debug("Datasource URL    : {}", environment.getProperty("spring.datasource.url"));
-        log.debug("Datasource user   : {}", environment.getProperty("spring.datasource.username"));
+        log.info("Datasource URL    : {}", environment.getProperty("spring.datasource.url"));
+        log.info("Datasource user   : {}", environment.getProperty("spring.datasource.username"));
+        log.info("Redis host        : {}", environment.getProperty("spring.data.redis.host"));
+        log.info("Redis port        : {}", environment.getProperty("spring.data.redis.port"));
+        log.info("Redis SSL         : {}", environment.getProperty("spring.data.redis.ssl.enabled"));
     }
 }

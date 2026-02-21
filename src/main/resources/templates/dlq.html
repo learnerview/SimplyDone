@@ -54,6 +54,7 @@
     <script th:src="@{/js/modules/theme.js}"></script>
     <script th:src="@{/js/modules/ui.js}"></script>
     <script th:src="@{/js/modules/toast.js}"></script>
+    <script th:src="@{/js/modules/ui-enhancements.js}"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -85,8 +86,8 @@
                                         <i data-lucide="alert-triangle"></i>
                                     </div>
                                     <div>
-                                        <div class="font-bold text-lg">${job.jobType}</div>
-                                        <div class="text-sm text-secondary font-mono mb-2">${job.id}</div>
+                                        <div class="font-bold text-lg">${job.originalJob ? job.originalJob.jobType : 'Unknown'}</div>
+                                        <div class="text-sm text-secondary font-mono mb-2">${job.originalJob ? job.originalJob.id : job.id || 'N/A'}</div>
                                         <div class="text-xs text-danger-400 font-medium mb-1">
                                             Last Error: ${job.failureReason || 'Unknown failure'}
                                         </div>
@@ -96,7 +97,7 @@
                                     </div>
                                 </div>
                                 <div class="flex gap-2">
-                                    <button onclick="retryJob('${job.id}')" class="btn btn-primary btn-icon-sm" title="Retry Job">
+                                    <button onclick="retryJob('${job.originalJob ? job.originalJob.id : job.id}')" class="btn btn-primary btn-icon-sm" title="Retry Job">
                                         <i data-lucide="rotate-ccw"></i>
                                     </button>
                                 </div>
@@ -121,7 +122,27 @@
         }
 
         async function retryAll() {
-            UI.showToast('Bulk retry not yet implemented in backend core', 'warning');
+            try {
+                const response = await fetch('/api/admin/dead-letter-queue');
+                const json = await response.json();
+                const jobs = json.data || [];
+                if (jobs.length === 0) {
+                    UI.showToast('DLQ is already empty', 'info');
+                    return;
+                }
+                const results = await Promise.allSettled(
+                    jobs.map(job => {
+                        const jobId = job.originalJob ? job.originalJob.id : job.id;
+                        if (!jobId) return Promise.reject(new Error('No job ID'));
+                        return fetch(`/api/admin/dead-letter-queue/${jobId}/retry`, { method: 'POST' });
+                    })
+                );
+                const success = results.filter(r => r.status === 'fulfilled' && r.value.ok).length;
+                UI.showToast(`Retried ${success} / ${jobs.length} jobs`, 'success');
+                loadDLQ();
+            } catch (e) {
+                UI.showToast('Retry all failed: ' + e.message, 'error');
+            }
         }
 
         async function clearDLQ() {

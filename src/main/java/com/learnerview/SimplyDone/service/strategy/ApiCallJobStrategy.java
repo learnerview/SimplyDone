@@ -27,11 +27,14 @@ public class ApiCallJobStrategy implements JobExecutionStrategy {
 
     private final RestClient restClient;
 
+    private static final int CONNECT_TIMEOUT_MS = 5_000;  // 5 seconds
+    private static final int READ_TIMEOUT_MS    = 10_000; // 10 seconds
+
     public ApiCallJobStrategy() {
         // Configure timeouts
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000); // 5 seconds
-        factory.setReadTimeout(10000);   // 10 seconds
+        factory.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        factory.setReadTimeout(READ_TIMEOUT_MS);
 
         this.restClient = RestClient.builder()
                 .requestFactory(factory)
@@ -72,8 +75,16 @@ public class ApiCallJobStrategy implements JobExecutionStrategy {
                 
                 // Validate response
                 validateResponse(response, params);
-                
-                // Store response if needed
+
+                // Always store the response so callers can inspect it via GET /api/jobs/{id}
+                String rawBody = response.getBody();
+                job.setExecutionResult(Map.of(
+                    "statusCode", response.getStatusCode().value(),
+                    "body", rawBody != null ? rawBody : "",
+                    "attempt", attempt + 1
+                ));
+
+                // Legacy store hook (kept for backward compatibility)
                 if (Boolean.TRUE.equals(params.get("storeResponse"))) {
                     storeApiResponse(job.getId(), response);
                 }

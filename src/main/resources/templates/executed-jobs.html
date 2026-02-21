@@ -57,6 +57,7 @@
     <script th:src="@{/js/modules/theme.js}"></script>
     <script th:src="@{/js/modules/ui.js}"></script>
     <script th:src="@{/js/modules/toast.js}"></script>
+    <script th:src="@{/js/modules/ui-enhancements.js}"></script>
     <script>
         lucide.createIcons();
 
@@ -106,7 +107,7 @@
                 const submittedAt = job.submittedAt ? new Date(job.submittedAt).toLocaleString() : '-';
                 return `
                     <tr class="hover:bg-zinc-50/50 transition-colors">
-                        <td class="font-mono text-xs text-zinc-400">${(job.id || '').substring(0, 8)}&hellip;</td>
+                        <td class="font-mono text-xs text-zinc-400"><a href="/job-status?id=${job.id}" class="hover:text-brand-400 transition-colors">${(job.id || '').substring(0, 8)}&hellip;</a></td>
                         <td>
                             <span class="text-xs font-semibold px-2 py-1 rounded bg-zinc-100/10">
                                 ${job.jobType || 'UNKNOWN'}

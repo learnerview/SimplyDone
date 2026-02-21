@@ -125,6 +125,8 @@
     <script th:src="@{/js/modules/api.js}"></script>
     <script th:src="@{/js/modules/theme.js}"></script>
     <script th:src="@{/js/modules/ui.js}"></script>
+    <script th:src="@{/js/modules/toast.js}"></script>
+    <script th:src="@{/js/modules/ui-enhancements.js}"></script>
     <script th:src="@{/js/modules/fileUploader.js}"></script>
     <script>
         // Initialize file uploader
@@ -167,8 +169,11 @@
                 btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i><span>Processing...</span>';
                 lucide.createIcons();
 
-                await API.submitJob(formData);
+                const result = await API.submitJob(formData);
                 UI.showToast('Data processing job queued', 'success');
+                if (result && result.id) {
+                    window.location.href = `/job-status?id=${result.id}`;
+                }
                 e.target.reset();
             } catch (error) {
                 UI.showToast(error.message, 'error');

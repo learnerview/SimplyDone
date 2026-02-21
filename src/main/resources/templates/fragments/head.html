@@ -11,8 +11,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     
-    <!-- Icons - Lucide -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Icons - Lucide (local copy for offline/sandbox support, CDN as fallback) -->
+    <script th:src="@{/js/lucide.min.js}"></script>
+    <script>
+        if (typeof lucide === 'undefined') {
+            var s = document.createElement('script');
+            s.src = 'https://unpkg.com/lucide@latest';
+            document.head.appendChild(s);
+        }
+    </script>
     
     <!-- Styles - Enhanced Design System -->
     <link rel="stylesheet" th:href="@{/css/variables.css}">

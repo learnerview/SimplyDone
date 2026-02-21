@@ -169,6 +169,38 @@ class RetryServiceTest {
         assertThat(dlqCaptor.getValue()).contains(errorMessage);
     }
 
+
+    @Test
+    @DisplayName("Dead-letter entry has a non-null id assigned")
+    void retryJob_deadLetterHasNonNullId() throws Exception {
+        Exception error = new RuntimeException("fatal error");
+        ArgumentCaptor<String> dlqCaptor = ArgumentCaptor.forClass(String.class);
+
+        retryService.retryJob(buildJobWithAttempt(0), error);
+        retryService.retryJob(buildJobWithAttempt(1), error);
+        retryService.retryJob(buildJobWithAttempt(2), error);
+        retryService.retryJob(buildJobWithAttempt(3), error); // triggers DLQ
+
+        verify(jobRepository).saveToDeadLetterQueue(dlqCaptor.capture());
+        DeadLetterJob dlqJob = objectMapper.readValue(dlqCaptor.getValue(), DeadLetterJob.class);
+        assertThat(dlqJob.getId()).isNotNull().isNotBlank();
+    }
+
+    @Test
+    @DisplayName("Dead-letter entry preserves the original job id")
+    void retryJob_deadLetterPreservesOriginalJobId() throws Exception {
+        Job job = buildJobWithAttempt(3);
+        Exception error = new RuntimeException("fatal");
+        ArgumentCaptor<String> dlqCaptor = ArgumentCaptor.forClass(String.class);
+
+        retryService.retryJob(job, error); // attempt 4 -> exceeds max 3 -> DLQ
+
+        verify(jobRepository).saveToDeadLetterQueue(dlqCaptor.capture());
+        DeadLetterJob dlqJob = objectMapper.readValue(dlqCaptor.getValue(), DeadLetterJob.class);
+        assertThat(dlqJob.getOriginalJobId()).isEqualTo(job.getId());
+    }
+
+
     @Test
     @DisplayName("resetRetryAttempts is a no-op in the current implementation (attemptCount lives on the job)")
     void resetRetryAttempts_allowsFreshRetry() {

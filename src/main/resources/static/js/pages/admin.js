@@ -85,20 +85,23 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    elements.dlqTable.innerHTML = jobs.map(job => `
+    elements.dlqTable.innerHTML = jobs.map(job => {
+      const origId = (job.originalJob ? job.originalJob.id : job.id) || '';
+      return `
         <tr class="glass-border-b hover:bg-white/[0.02] transition-colors">
-          <td class="px-6 py-4 font-mono text-[10px] text-brand" title="${job.id}">${job.id.substring(0, 8)}...</td>
+          <td class="px-6 py-4 font-mono text-[10px] text-brand" title="${origId}">${origId.substring(0, 8)}...</td>
           <td class="px-6 py-4 truncate max-w-[200px]">${job.originalJob ? job.originalJob.message : job.message || 'N/A'}</td>
           <td class="px-6 py-4">${job.retryAttempts || job.retryCount || 0}</td>
           <td class="px-6 py-4 text-danger text-xs italic">${job.failureReason || 'Unknown'}</td>
           <td class="px-6 py-4 text-right">
-            <button onclick="handleDLQRetry('${job.id}')" class="btn btn-secondary py-1 px-3 text-xs">
+            <button onclick="handleDLQRetry('${origId}')" class="btn btn-secondary py-1 px-3 text-xs">
               <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
               <span>Re-run</span>
             </button>
           </td>
         </tr>
-      `).join('');
+      `;
+    }).join('');
   };
 
   // retry a dead letter job - moves it back into the processing queue

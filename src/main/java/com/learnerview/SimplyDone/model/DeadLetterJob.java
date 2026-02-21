@@ -1,5 +1,6 @@
 package com.learnerview.SimplyDone.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -54,6 +55,7 @@ public class DeadLetterJob {
      * 
      * @return the original job ID
      */
+    @JsonIgnore
     public String getOriginalJobId() {
         return originalJob != null ? originalJob.getId() : null;
     }
@@ -63,6 +65,7 @@ public class DeadLetterJob {
      * 
      * @return the original job message
      */
+    @JsonIgnore
     public String getOriginalMessage() {
         return originalJob != null ? originalJob.getMessage() : null;
     }

@@ -1,5 +1,6 @@
 package com.learnerview.SimplyDone.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.learnerview.SimplyDone.dto.EnhancedJobSubmissionRequest;
 import com.learnerview.SimplyDone.dto.JobMapper;
 import com.learnerview.SimplyDone.dto.JobSubmissionRequest;
@@ -46,6 +47,7 @@ public class JobServiceImpl implements JobService {
     private final JobExecutor jobExecutor;
     private final Timer jobExecutionTimer;
     private final JobExecutorFactory jobExecutorFactory;
+    private final ObjectMapper objectMapper;
 
     // optional PostgreSQL persistence – absent in unit tests, injected in production
     @Autowired(required = false)
@@ -210,6 +212,11 @@ public class JobServiceImpl implements JobService {
     private void persistJobEntity(Job job) {
         if (jobEntityRepository == null) return;
         try {
+            String parametersJson = job.getParameters() != null
+                    ? objectMapper.writeValueAsString(job.getParameters()) : null;
+            String executionResultJson = job.getExecutionResult() != null
+                    ? objectMapper.writeValueAsString(job.getExecutionResult()) : null;
+
             JobEntity entity = JobEntity.builder()
                     .id(job.getId())
                     .jobType(job.getJobType())
@@ -224,6 +231,8 @@ public class JobServiceImpl implements JobService {
                     .executedAt(job.getExecutedAt())
                     .status(job.getStatus() != null ? job.getStatus() : JobStatus.PENDING)
                     .attemptCount(job.getAttemptCount())
+                    .parameters(parametersJson)
+                    .executionResult(executionResultJson)
                     .errorMessage(job.getErrorMessage())
                     .build();
             jobEntityRepository.save(entity);

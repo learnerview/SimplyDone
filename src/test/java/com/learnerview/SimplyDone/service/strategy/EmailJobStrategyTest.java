@@ -186,8 +186,8 @@ class EmailJobStrategyTest {
     }
 
     @Test
-    @DisplayName("execute throws when SmtpEmailService throws an exception")
-    void execute_serviceThrows_wrapsException() throws Exception {
+    @DisplayName("execute throws when SmtpEmailService throws an exception with original message")
+    void execute_serviceThrows_rethrowsOriginalException() throws Exception {
         Map<String, Object> params = new HashMap<>();
         params.put("to", "dest@example.com");
         params.put("subject", "Hi");
@@ -197,8 +197,8 @@ class EmailJobStrategyTest {
                 .thenThrow(new jakarta.mail.MessagingException("SMTP auth failed"));
 
         assertThatThrownBy(() -> strategy.execute(buildEmailJob(params)))
-                .isInstanceOf(Exception.class)
-                .hasMessageContaining("Email sending failed");
+                .isInstanceOf(jakarta.mail.MessagingException.class)
+                .hasMessage("SMTP auth failed");
     }
 
     // -------------------------------------------------------

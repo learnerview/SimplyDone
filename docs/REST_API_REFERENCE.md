@@ -267,6 +267,42 @@ Returns a summary of all pending jobs for a specific user, grouped by priority.
 
 ---
 
+### GET /api/admin/jobs/executed — Completed Job History
+
+Returns all jobs that have reached a terminal state (`EXECUTED` or `FAILED`), sourced from PostgreSQL. Useful for auditing, debugging, and building dashboards.
+
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Completed jobs retrieved (42 total)",
+  "data": [
+    {
+      "id": "3f8a2b1c-...",
+      "jobType": "EMAIL_SEND",
+      "userId": "user-42",
+      "status": "EXECUTED",
+      "submittedAt": "2024-01-15T10:30:00Z",
+      "executedAt": "2024-01-15T10:30:01Z",
+      "errorMessage": null
+    },
+    {
+      "id": "9e1d4a7f-...",
+      "jobType": "API_CALL",
+      "userId": "user-10",
+      "status": "FAILED",
+      "submittedAt": "2024-01-15T10:31:00Z",
+      "executedAt": "2024-01-15T10:31:02Z",
+      "errorMessage": "Connection refused: external-api.example.com:443"
+    }
+  ]
+}
+```
+
+Returns an empty array (not an error) when no jobs have completed yet or when PostgreSQL is unavailable.
+
+---
+
 ### GET /api/admin/performance — JVM Metrics
 
 Returns JVM memory usage, thread counts, and uptime information useful for capacity planning.

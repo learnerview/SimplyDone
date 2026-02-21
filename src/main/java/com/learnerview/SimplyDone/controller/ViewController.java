@@ -92,4 +92,9 @@ public class ViewController {
     public String executedJobs() {
         return "executed-jobs";
     }
+
+    @GetMapping("/rate-limits")
+    public String rateLimits() {
+        return "rate-limits";
+    }
 }

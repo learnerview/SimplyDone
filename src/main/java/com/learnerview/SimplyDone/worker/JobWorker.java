@@ -38,24 +38,30 @@ public class JobWorker {
     
     /**
      * Main worker method that runs on a fixed schedule.
+     * Drains up to {@code maxJobsPerCycle} jobs per tick for better throughput.
      */
     @Scheduled(fixedRateString = "#{schedulerProperties.worker.intervalMs}")
     public void processJobs() {
         long cycles = workerCycles.incrementAndGet();
         long startTime = System.currentTimeMillis();
+        int maxPerCycle = schedulerProperties.getWorker().getMaxJobsPerCycle();
 
         try {
-            boolean jobExecuted = jobService.executeNextReadyJob();
-
-            if (jobExecuted) {
+            int processed = 0;
+            while (processed < maxPerCycle) {
+                boolean jobExecuted = jobService.executeNextReadyJob();
+                if (!jobExecuted) break;
                 jobsExecuted.incrementAndGet();
-                lastExecutionTime.set(System.currentTimeMillis() - startTime);
                 consecutiveRedisFailures.set(0);
-                log.debug("Worker cycle {}: Job executed successfully", cycles);
-            } else {
-                if (cycles % 60 == 0) {
-                    log.debug("Worker cycle {}: No jobs ready", cycles);
-                }
+                processed++;
+            }
+
+            if (processed > 0) {
+                lastExecutionTime.set(System.currentTimeMillis() - startTime);
+                log.debug("Worker cycle {}: {} job(s) executed in {}ms", cycles, processed,
+                        lastExecutionTime.get());
+            } else if (cycles % 60 == 0) {
+                log.debug("Worker cycle {}: No jobs ready", cycles);
             }
 
             if (cycles % 60 == 0) {

@@ -73,8 +73,13 @@ public class SchedulerProperties {
     public static class Worker {
         @Min(100)
         private long intervalMs = 1000;
+        /** Max jobs drained per polling cycle. Increase for higher throughput. */
+        @Min(1)
+        private int maxJobsPerCycle = 5;
         public long getIntervalMs() { return intervalMs; }
         public void setIntervalMs(long intervalMs) { this.intervalMs = intervalMs; }
+        public int getMaxJobsPerCycle() { return maxJobsPerCycle; }
+        public void setMaxJobsPerCycle(int maxJobsPerCycle) { this.maxJobsPerCycle = maxJobsPerCycle; }
     }
 
     public static class Redis {

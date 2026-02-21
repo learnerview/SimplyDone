@@ -11,7 +11,11 @@ These are the variables you should set in production (Render, Docker, etc.).
 | Environment Variable | Maps to Property | Default | Purpose |
 |---|---|---|---|
 | `PORT` | `server.port` | `8080` | HTTP listening port |
-| `REDIS_URL` | `spring.data.redis.url` | `redis://localhost:6380` | Redis connection URL. Note: port 6380 is specific to the provided `docker-compose.yml`. Standard Redis uses 6379. Set this to your actual Redis URL in all non-Docker-Compose environments |
+| `REDIS_URL` | Parsed by `entrypoint.sh` and `RedisUrlEnvironmentPostProcessor` | `redis://localhost:6379` | Redis/Valkey connection URL. Supported formats: `redis://host:port`, `redis://:password@host:port`, `rediss://host:port` (TLS). |
+| `SPRING_DATA_REDIS_HOST` | `spring.data.redis.host` | `localhost` | Direct Redis host override (set by entrypoint.sh from REDIS_URL). |
+| `SPRING_DATA_REDIS_PORT` | `spring.data.redis.port` | `6379` | Direct Redis port override. |
+| `SPRING_DATA_REDIS_PASSWORD` | `spring.data.redis.password` | (empty) | Direct Redis password override. |
+| `SPRING_DATA_REDIS_SSL_ENABLED` | `spring.data.redis.ssl.enabled` | `false` | Set to `true` when using TLS (`rediss://`). Set automatically from `REDIS_URL`. |
 | `DATABASE_URL` | Parsed by `entrypoint.sh` | H2 in-memory | PostgreSQL connection in Render format: `postgresql://USER:PASS@HOST:PORT/DBNAME` |
 | `SPRING_DATASOURCE_URL` | `spring.datasource.url` | H2 in-memory | Direct JDBC URL override (alternative to `DATABASE_URL`) |
 | `SPRING_DATASOURCE_USERNAME` | `spring.datasource.username` | `sa` | Database username |
@@ -27,11 +31,20 @@ Note: When `DATABASE_URL` is not set and `SPRING_DATASOURCE_URL` is also unset, 
 
 ## Redis Configuration
 
+The application reads Redis connection details from individual Spring properties. On Render (and in Docker), `entrypoint.sh` parses `REDIS_URL` and exports the values. A Java-side `RedisUrlEnvironmentPostProcessor` provides a fallback for non-Docker environments.
+
 | Property | Default | Description |
 |---|---|---|
-| `spring.data.redis.url` | `redis://localhost:6380` | Connection URL. Port 6380 is the non-standard port used by the provided `docker-compose.yml` to avoid conflicting with a locally-running Redis. Standard Redis uses port 6379 |
+| `spring.data.redis.host` | `localhost` | Redis/Valkey hostname |
+| `spring.data.redis.port` | `6379` | Redis/Valkey port (standard) |
+| `spring.data.redis.password` | (empty) | Redis AUTH password (set from `REDIS_URL` if present) |
+| `spring.data.redis.ssl.enabled` | `false` | Enable TLS; set automatically when `REDIS_URL` uses `rediss://` |
 | `spring.data.redis.timeout` | `2000ms` | Connection and command timeout |
-| `spring.data.redis.lettuce.pool.max-active` | `8` | Maximum pool connections |
+| `spring.data.redis.lettuce.pool.max-active` | `8` | Maximum pool connections (requires `commons-pool2` on classpath) |
+| `spring.data.redis.lettuce.pool.max-idle` | `8` | Maximum idle connections in pool |
+| `spring.data.redis.lettuce.pool.min-idle` | `0` | Minimum idle connections in pool |
+
+> **Note for local Docker Compose:** The `docker-compose.yml` maps the Redis container's internal port 6379 to host port 6380 to avoid conflicts with a locally-running Redis. The `REDIS_URL` is set to `redis://redis:6379` (internal container-to-container) inside Docker. When running the app directly with Maven, use `REDIS_URL=redis://localhost:6380` or the host/port env vars directly.
 
 ---
 
@@ -58,6 +71,7 @@ Note: When `DATABASE_URL` is not set and `SPRING_DATASOURCE_URL` is also unset, 
 | Property | Default | Description |
 |---|---|---|
 | `simplydone.scheduler.worker.interval-ms` | `1000` | Polling interval in milliseconds. Lower values reduce latency but increase Redis load |
+| `simplydone.scheduler.worker.max-jobs-per-cycle` | `5` | Maximum jobs drained per polling tick. Increase for higher throughput under load |
 
 ---
 

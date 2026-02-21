@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/head :: head}"></head>
+
+<body>
+    <div class="main-layout">
+        <nav th:replace="~{fragments/sidebar :: sidebar}"></nav>
+
+        <main class="main-content">
+            <header class="navbar glass-border-b">
+                <div class="breadcrumb">
+                    <span class="text-secondary">Management</span>
+                    <span class="mx-2">/</span>
+                    <span class="font-bold">Rate Limits</span>
+                </div>
+                <div class="header-actions">
+                    <div class="glass-pill status-pill">
+                        <span class="status-indicator online pulsing"></span>
+                        <span>60 req / min default</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="p-8 space-y-8">
+                <!-- Lookup form -->
+                <section>
+                    <div class="glass-card">
+                        <div class="card-title">
+                            <i data-lucide="gauge"></i>
+                            <span>Inspect Rate Limit</span>
+                        </div>
+                        <p class="text-sm text-secondary mb-6">
+                            Enter a User ID to view the current usage and remaining quota for the active 60-second window.
+                        </p>
+                        <div class="flex gap-4 items-end">
+                            <div class="form-group flex-1">
+                                <label class="nav-label p-0 lowercase mb-2">User ID</label>
+                                <input type="text" id="userIdInput" class="input-glass" placeholder="e.g. user-42" />
+                            </div>
+                            <button id="checkBtn" class="btn btn-primary" style="margin-bottom:0">
+                                <i data-lucide="search"></i>
+                                <span>Check</span>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Result card (hidden until a lookup is performed) -->
+                <section id="resultSection" class="hidden">
+                    <div class="glass-card">
+                        <div class="card-title">
+                            <i data-lucide="activity"></i>
+                            <span>Current Window Status</span>
+                        </div>
+
+                        <div class="dashboard-grid stagger-children mt-4">
+                            <!-- Requests used -->
+                            <div class="stat-card glass glass-hover">
+                                <div class="stat-icon-wrapper brand">
+                                    <i data-lucide="bar-chart-2"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-label">Requests Used</span>
+                                    <h2 id="currentCount" class="stat-value">-</h2>
+                                </div>
+                            </div>
+
+                            <!-- Max allowed -->
+                            <div class="stat-card glass glass-hover">
+                                <div class="stat-icon-wrapper success">
+                                    <i data-lucide="shield-check"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-label">Max Allowed</span>
+                                    <h2 id="maxRequests" class="stat-value">-</h2>
+                                </div>
+                            </div>
+
+                            <!-- Window reset -->
+                            <div class="stat-card glass glass-hover">
+                                <div class="stat-icon-wrapper" id="allowedIconWrapper">
+                                    <i data-lucide="clock"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-label">Window Resets In</span>
+                                    <h2 id="resetTime" class="stat-value">-</h2>
+                                </div>
+                                <div id="allowedBadge" class="stat-trend"></div>
+                            </div>
+                        </div>
+
+                        <!-- Usage progress bar -->
+                        <div class="mt-6">
+                            <div class="flex justify-between text-xs text-secondary mb-2">
+                                <span>Usage</span>
+                                <span id="usagePercent">0%</span>
+                            </div>
+                            <div class="h-2 rounded-full bg-white/5 overflow-hidden">
+                                <div id="usageBar" class="h-full rounded-full transition-all duration-500 bg-brand"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- How it works info card -->
+                <section>
+                    <div class="card glass">
+                        <div class="card-title text-sm">
+                            <i data-lucide="info" class="w-4 h-4"></i>
+                            <span>How Rate Limiting Works</span>
+                        </div>
+                        <ul class="text-xs text-secondary space-y-2 list-disc pl-4 mt-2">
+                            <li>Limits are enforced <strong>per User ID</strong> using a fixed 60-second sliding window backed by Redis.</li>
+                            <li>Each job submission increments the counter for the active minute window atomically via Redis <code>INCR</code>.</li>
+                            <li>When the window expires the counter resets automatically (Redis TTL).</li>
+                            <li>If Redis is unavailable, requests are <strong>allowed through</strong> (fail-open) with a warning logged.</li>
+                            <li>The global default is <strong>60 requests per minute</strong>. Configure via <code>simplydone.scheduler.rate-limit.requests-per-minute</code>.</li>
+                            <li>Exceeding the limit returns HTTP 429 with a <code>Retry-After</code> header.</li>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script th:src="@{/js/modules/api.js}"></script>
+    <script th:src="@{/js/modules/theme.js}"></script>
+    <script th:src="@{/js/modules/ui.js}"></script>
+    <script th:src="@{/js/modules/toast.js}"></script>
+    <script>
+        lucide.createIcons();
+
+        async function checkRateLimit() {
+            const userId = document.getElementById('userIdInput').value.trim();
+            if (!userId) {
+                UI.showToast('Please enter a User ID', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('checkBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i><span>Checking…</span>';
+            lucide.createIcons();
+
+            try {
+                const data = await API.getRateLimit(userId);
+                renderResult(data);
+                document.getElementById('resultSection').classList.remove('hidden');
+            } catch (err) {
+                UI.showToast(err.message || 'Failed to fetch rate limit status', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                lucide.createIcons();
+            }
+        }
+
+        function renderResult(data) {
+            const used = data.currentCount ?? 0;
+            const max  = data.maxRequests ?? 60;
+            const reset = data.resetTimeSeconds ?? 60;
+            const allowed = data.allowed !== false;
+            const pct = Math.min(100, Math.round((used / max) * 100));
+
+            document.getElementById('currentCount').textContent = used;
+            document.getElementById('maxRequests').textContent = max;
+            document.getElementById('resetTime').textContent = reset + 's';
+            document.getElementById('usagePercent').textContent = pct + '%';
+
+            const bar = document.getElementById('usageBar');
+            bar.style.width = pct + '%';
+            bar.className = 'h-full rounded-full transition-all duration-500 ' +
+                (pct >= 90 ? 'bg-danger' : pct >= 70 ? 'bg-warning' : 'bg-brand');
+
+            const badge = document.getElementById('allowedBadge');
+            badge.className = 'stat-trend ' + (allowed ? 'positive' : 'negative');
+            badge.innerHTML = allowed
+                ? '<i data-lucide="check-circle" class="w-4 h-4"></i><span>Under Limit</span>'
+                : '<i data-lucide="x-circle" class="w-4 h-4"></i><span>Throttled</span>';
+
+            const iconWrapper = document.getElementById('allowedIconWrapper');
+            iconWrapper.className = 'stat-icon-wrapper ' + (allowed ? 'success' : 'danger');
+
+            lucide.createIcons();
+        }
+
+        document.getElementById('checkBtn').addEventListener('click', checkRateLimit);
+        document.getElementById('userIdInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') checkRateLimit();
+        });
+    </script>
+</body>
+
+</html>

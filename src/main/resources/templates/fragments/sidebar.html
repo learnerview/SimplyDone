@@ -93,6 +93,12 @@
                 </a>
             </li>
             <li>
+                <a th:href="@{/rate-limits}" class="nav-item" th:classappend="${currentPage == 'rate-limits'} ? 'active' : ''">
+                    <i data-lucide="gauge"></i>
+                    <span>Rate Limits</span>
+                </a>
+            </li>
+            <li>
                 <a th:href="@{/system-health}" class="nav-item"
                     th:classappend="${currentPage == 'health'} ? 'active' : ''">
                     <i data-lucide="activity"></i>

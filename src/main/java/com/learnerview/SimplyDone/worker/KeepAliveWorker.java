@@ -29,6 +29,8 @@ import org.springframework.web.client.RestClient;
 public class KeepAliveWorker {
 
     private static final int CONNECT_TIMEOUT_MS = 5_000;
+    // Read timeout is longer than connect timeout because the health endpoint may take
+    // a moment to respond on Render's free tier when it was recently cold-started.
     private static final int READ_TIMEOUT_MS    = 10_000;
 
     private final RestClient restClient;

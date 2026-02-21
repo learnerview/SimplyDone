@@ -82,10 +82,24 @@ public class DataProcessingJobStrategy implements JobExecutionStrategy {
             throw new IllegalArgumentException("Data processing 'inputFile' is required");
         }
         
-        // Block path traversal attempts (e.g. ../../etc/passwd)
+        // B9 fix: block path traversal tokens (e.g. ../../etc/passwd)
         Path path = Paths.get(inputFile);
         if (!path.normalize().toString().equals(path.toString())) {
             throw new SecurityException("Path traversal attempt detected: " + inputFile);
+        }
+        
+        // Also block absolute paths that point directly into system directories
+        if (path.isAbsolute()) {
+            String normalized = path.normalize().toString().toLowerCase().replace('\\', '/');
+            List<String> blockedPrefixes = java.util.Arrays.asList(
+                "/etc/", "/root/", "/proc/", "/sys/", "/usr/bin/", "/usr/sbin/",
+                "c:/windows/", "c:/program files/"
+            );
+            for (String blocked : blockedPrefixes) {
+                if (normalized.startsWith(blocked)) {
+                    throw new SecurityException("Access to system directory is forbidden: " + inputFile);
+                }
+            }
         }
         
         // Check if input file exists

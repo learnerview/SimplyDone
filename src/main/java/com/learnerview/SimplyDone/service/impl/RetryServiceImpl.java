@@ -103,6 +103,8 @@ public class RetryServiceImpl implements RetryService {
             
             String deadLetterJson = objectMapper.writeValueAsString(deadLetterJob);
             jobRepository.saveToDeadLetterQueue(deadLetterJson);
+            // B4 fix: count jobs that exhaust all retries as rejected so admin dashboard is accurate
+            jobRepository.incrementRejectedJobsCounter();
             log.info("Moved job {} to dead-letter queue after {} attempts", job.getId(), job.getAttemptCount());
         } catch (Exception e) {
             log.error("Failed to move job {} to DLQ: {}", job.getId(), e.getMessage());

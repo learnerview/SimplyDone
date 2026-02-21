@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -47,13 +48,18 @@ class RateLimitingServiceTest {
     }
 
     @Test
-    @DisplayName("isAllowed sets TTL on first request in a window")
+    @DisplayName("isAllowed sets TTL on first request in a window (duration <= 60s)")
     void isAllowed_firstRequest_setsTtl() {
         when(valueOps.increment(anyString())).thenReturn(1L);
 
         rateLimitingService.isAllowed("user-1");
 
-        verify(redisTemplate).expire(anyString(), eq(Duration.ofMinutes(1)));
+        // B6 fix: TTL is now the remaining time in the current 60-second window (1–60s),
+        // not always a flat 60 seconds.
+        ArgumentCaptor<Duration> ttlCaptor = ArgumentCaptor.forClass(Duration.class);
+        verify(redisTemplate).expire(anyString(), ttlCaptor.capture());
+        Duration ttl = ttlCaptor.getValue();
+        assertThat(ttl.getSeconds()).isGreaterThan(0).isLessThanOrEqualTo(60);
     }
 
     @Test

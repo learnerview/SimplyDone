@@ -8,10 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
-import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Repository;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +52,8 @@ public class JobRepository {
             
             // Also save to status map for lookup
             redisTemplate.opsForHash().put(jobStatusMap, job.getId(), jobJson);
-            redisTemplate.expire(jobStatusMap, Duration.ofHours(1));
+            // B1 fix: do NOT call expire() here — resetting the TTL on every saveJob would
+            // wipe all status entries (including in-flight jobs) after 1 hour.
             
             log.debug("Job {} saved to {} queue and status map", job.getId(), job.getPriority());
         } catch (Exception e) {
@@ -212,7 +211,12 @@ public class JobRepository {
                 Job job = objectMapper.readValue(jobJson, Job.class);
                 if (job.getId().equals(jobId)) {
                     Long removed = redisTemplate.opsForZSet().remove(queueKey, jobJson);
-                    return removed != null && removed > 0;
+                    if (removed != null && removed > 0) {
+                        // B2 fix: also remove from status map so GET /api/jobs/{id} returns 404
+                        redisTemplate.opsForHash().delete(jobStatusMap, jobId);
+                        return true;
+                    }
+                    return false;
                 }
             }
             return false;
@@ -253,15 +257,29 @@ public class JobRepository {
     }
     
     public int clearAllQueues() {
+        // B3 fix: also wipe the status map so stale jobs aren't returned by ID after a flush
+        redisTemplate.delete(jobStatusMap);
         return clearQueue(JobPriority.HIGH) + clearQueue(JobPriority.LOW);
     }
     
     public int clearQueue(JobPriority priority) {
         try {
             String queueKey = getQueueKey(priority);
+            // B3 fix: collect job IDs before deleting the queue so we can remove them from the status map
+            Set<String> jobs = redisTemplate.opsForZSet().range(queueKey, 0, -1);
             Long size = redisTemplate.opsForZSet().size(queueKey);
             if (size != null && size > 0) {
                 redisTemplate.delete(queueKey);
+                if (jobs != null) {
+                    for (String jobJson : jobs) {
+                        try {
+                            Job job = objectMapper.readValue(jobJson, Job.class);
+                            redisTemplate.opsForHash().delete(jobStatusMap, job.getId());
+                        } catch (Exception ex) {
+                            log.debug("Could not remove status map entry during queue clear: {}", ex.getMessage());
+                        }
+                    }
+                }
                 return size.intValue();
             }
             return 0;

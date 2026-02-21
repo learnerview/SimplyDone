@@ -110,8 +110,14 @@ public class JobServiceImpl implements JobService {
                     job.setStatus(com.learnerview.SimplyDone.model.JobStatus.FAILED);
                     job.setErrorMessage(e.getMessage());
                     
-                    retryService.retryJob(job, e);
-                    jobRepository.updateJobStatus(job); // Persist FAILED (or retrying) status
+                    boolean willRetry = retryService.retryJob(job, e);
+                    // B5 fix: if the job was re-queued for retry, update status map to PENDING
+                    // so GET /api/jobs/{id} reflects the actual state (waiting to retry).
+                    // If it went to DLQ, keep FAILED.
+                    if (willRetry) {
+                        job.setStatus(com.learnerview.SimplyDone.model.JobStatus.PENDING);
+                    }
+                    jobRepository.updateJobStatus(job); // Persist PENDING (retrying) or FAILED status
                     persistJobEntity(job);
                     return false;
                 }

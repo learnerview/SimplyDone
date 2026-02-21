@@ -29,11 +29,14 @@ public class RateLimitingServiceImpl implements RateLimitingService {
 
         try {
             // INCR is atomic — each call increments and returns the new counter value.
-            // On the very first request in a window (count == 1) we set a 60-second TTL
-            // so the key auto-expires at the end of the fixed minute window.
+            // On the very first request in a window (count == 1) we set a TTL that expires
+            // at the end of the current fixed 60-second window, not a flat 60 seconds from now.
             Long count = redisTemplate.opsForValue().increment(rateLimitKey);
             if (count != null && count == 1) {
-                redisTemplate.expire(rateLimitKey, Duration.ofMinutes(1));
+                // B6 fix: TTL = seconds remaining until the next minute boundary
+                long secondsIntoWindow = Instant.now().getEpochSecond() % 60;
+                long remainingSeconds = 60 - secondsIntoWindow;
+                redisTemplate.expire(rateLimitKey, Duration.ofSeconds(remainingSeconds));
             }
             int requestCount = count != null ? count.intValue() : 1;
             log.debug("Rate limit check for user {}: {}/{}", userId, requestCount, maxRequests);

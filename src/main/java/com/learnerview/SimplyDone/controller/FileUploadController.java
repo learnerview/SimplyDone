@@ -57,8 +57,10 @@ public class FileUploadController {
         FileUploadService.FileDownloadResult result = fileUploadService.downloadFile(fileId);
         log.info("File downloaded: {}", fileId);
 
+        // B8 fix: strip characters that could inject extra headers via the filename
+        String safeFileName = result.fileName().replaceAll("[\\r\\n\"\\\\]", "_");
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + result.fileName() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + safeFileName + "\"")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(result.content());
     }

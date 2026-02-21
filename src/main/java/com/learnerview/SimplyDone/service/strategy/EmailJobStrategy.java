@@ -40,16 +40,15 @@ public class EmailJobStrategy implements JobExecutionStrategy {
         try {
             Map<String, Object> result = smtpEmailService.sendEmail(to, subject, body, senderEmail, senderPassword);
             
-            if (Boolean.TRUE.equals(result.get("success"))) {
-                log.info("Email sent successfully to: {} (from: {}) for job: {}", to, result.get("from"), job.getId());
-            } else {
+            if (!Boolean.TRUE.equals(result.get("success"))) {
                 String message = (String) result.getOrDefault("message", "Unknown error");
                 throw new Exception("Email sending failed: " + message);
             }
             
+            log.info("Email sent successfully to: {} (from: {}) for job: {}", to, result.get("from"), job.getId());
         } catch (Exception e) {
             log.error("Failed to send email for job {}: {}", job.getId(), e.getMessage());
-            throw new Exception("Email sending failed: " + e.getMessage(), e);
+            throw e;
         }
     }
     

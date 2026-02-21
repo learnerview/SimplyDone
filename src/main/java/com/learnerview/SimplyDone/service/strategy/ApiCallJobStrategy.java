@@ -14,7 +14,6 @@ import org.springframework.http.ResponseEntity;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Strategy for executing API call jobs.
@@ -58,50 +57,28 @@ public class ApiCallJobStrategy implements JobExecutionStrategy {
         String method = (String) params.getOrDefault("method", "GET");
         Map<String, String> headers = (Map<String, String>) params.getOrDefault("headers", Collections.emptyMap());
         Object body = params.get("body");
-        Integer maxRetries = (Integer) params.getOrDefault("maxRetries", 3);
         
-        int attempt = 0;
-        Exception lastException = null;
-        
-        while (attempt <= maxRetries) {
-            try {
-                if (attempt > 0) {
-                    long backoff = (long) Math.pow(2, attempt) * 1000;
-                    log.info("Retrying API call for job {} (Attempt {}/{}) in {}ms", job.getId(), attempt, maxRetries, backoff);
-                    TimeUnit.MILLISECONDS.sleep(backoff);
-                }
-                
-                ResponseEntity<String> response = executeApiCall(url, method, headers, body);
-                
-                // Validate response
-                validateResponse(response, params);
+        // B10 fix: removed internal retry loop — retries are handled by RetryService at the
+        // framework level. Having both means a failing job retries up to
+        // (internalRetries+1) × frameworkMaxRetries times instead of frameworkMaxRetries times.
+        ResponseEntity<String> response = executeApiCall(url, method, headers, body);
+        validateResponse(response, params);
 
-                // Always store the response so callers can inspect it via GET /api/jobs/{id}
-                String rawBody = response.getBody();
-                job.setExecutionResult(Map.of(
-                    "statusCode", response.getStatusCode().value(),
-                    "body", rawBody != null ? rawBody : "",
-                    "attempt", attempt + 1
-                ));
+        String rawBody = response.getBody();
+        job.setExecutionResult(Map.of(
+            "statusCode", response.getStatusCode().value(),
+            "body", rawBody != null ? rawBody : "",
+            // getAttemptCount() is 0-based (starts at 0, incremented on each retry);
+            // +1 gives the human-readable attempt number (1 = first try, 2 = first retry, …)
+            "attempt", job.getAttemptCount() + 1
+        ));
 
-                // Legacy store hook (kept for backward compatibility)
-                if (Boolean.TRUE.equals(params.get("storeResponse"))) {
-                    storeApiResponse(job.getId(), response);
-                }
-                
-                log.info("API call completed successfully for job: {}. Status: {}", 
-                        job.getId(), response.getStatusCode());
-                return; // Success
-                
-            } catch (Exception e) {
-                lastException = e;
-                log.warn("API call attempt {} failed for job {}: {}", attempt + 1, job.getId(), e.getMessage());
-                attempt++;
-            }
+        if (Boolean.TRUE.equals(params.get("storeResponse"))) {
+            storeApiResponse(job.getId(), response);
         }
         
-        log.error("API call failed after {} attempts for job {}", maxRetries + 1, job.getId());
-        throw new Exception("API call failed after retries: " + lastException.getMessage(), lastException);
+        log.info("API call completed successfully for job: {}. Status: {}", 
+                job.getId(), response.getStatusCode());
     }
     
     @Override

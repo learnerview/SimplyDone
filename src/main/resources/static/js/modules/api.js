@@ -55,6 +55,12 @@ const API = {
         return this._fetch('/admin/queues/clear', { method: 'DELETE' });
     },
 
+    // send a test email via SMTP to verify email configuration
+    async testEmail(to) {
+        const params = to ? `?to=${encodeURIComponent(to)}` : '';
+        return this._fetch(`/admin/test-email${params}`, { method: 'POST' });
+    },
+
     // base fetch wrapper - handles errors and unwraps ApiResponse.data
     async _fetch(endpoint, options = {}) {
         const url = `${this.baseUrl}${endpoint}`;

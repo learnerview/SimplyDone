@@ -12,6 +12,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - SMTP_USERNAME=${SMTP_USERNAME:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - EMAIL_ENABLED=${EMAIL_ENABLED:-false}
     depends_on:
       - db
       - redis

@@ -7,6 +7,7 @@ import com.learnerview.SimplyDone.model.DeadLetterJob;
 import com.learnerview.SimplyDone.model.JobPriority;
 import com.learnerview.SimplyDone.service.AdminService;
 import com.learnerview.SimplyDone.service.RetryService;
+import com.learnerview.SimplyDone.service.SmtpEmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -31,6 +32,7 @@ import java.util.Map;
 public class AdminController {
 
     private final AdminService adminService;
+    private final SmtpEmailService smtpEmailService;
 
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<?>> getStats() {
@@ -145,6 +147,28 @@ public class AdminController {
             return ResponseEntity.ok(ApiResponse.success("Job cancelled successfully"));
         } else {
             return ResponseEntity.status(404).body(ApiResponse.error(404, "RESOURCE_NOT_FOUND", "Job not found in " + priority + " queue"));
+        }
+    }
+
+    @PostMapping("/test-email")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> sendTestEmail(
+            @RequestParam(defaultValue = "") String to) {
+        String recipient = to.trim().isEmpty() ? null : to.trim();
+        log.info("Test email requested to: {}", recipient != null ? recipient : "(configured sender address)");
+        try {
+            Map<String, Object> result = smtpEmailService.sendTestEmail(recipient);
+            if (Boolean.TRUE.equals(result.get("success"))) {
+                log.info("Test email sent successfully to: {}", result.get("to"));
+                return ResponseEntity.ok(ApiResponse.success(result, "Test email sent successfully"));
+            } else {
+                String msg = (String) result.getOrDefault("message", "Email service is disabled");
+                log.warn("Test email not sent: {}", msg);
+                return ResponseEntity.ok(ApiResponse.error(200, "EMAIL_DISABLED", msg));
+            }
+        } catch (Exception e) {
+            log.error("Test email failed: {}", e.getMessage());
+            return ResponseEntity.status(500).body(
+                    ApiResponse.error(500, "EMAIL_ERROR", "Failed to send test email: " + e.getMessage()));
         }
     }
 }

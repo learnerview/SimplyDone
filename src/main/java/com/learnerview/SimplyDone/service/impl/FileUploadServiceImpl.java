@@ -4,6 +4,7 @@ import com.learnerview.SimplyDone.exception.InternalException;
 import com.learnerview.SimplyDone.exception.ResourceNotFoundException;
 import com.learnerview.SimplyDone.service.FileUploadService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -22,12 +23,13 @@ import java.util.UUID;
 @Slf4j
 public class FileUploadServiceImpl implements FileUploadService {
 
-    // base directory where files are saved
+    // base directory where files are saved — configured via simplydone.upload.directory
     private final Path uploadDir;
 
-    public FileUploadServiceImpl() {
-        // create the upload dir on startup if it doesn't exist
-        this.uploadDir = Paths.get(System.getProperty("java.io.tmpdir"), "simplydone-uploads");
+    // B7 fix: inject the configured upload directory instead of always using java.io.tmpdir
+    public FileUploadServiceImpl(
+            @Value("${simplydone.upload.directory:${java.io.tmpdir}/simplydone-uploads}") String uploadDirectory) {
+        this.uploadDir = Paths.get(uploadDirectory);
         try {
             Files.createDirectories(uploadDir);
             log.info("File upload directory initialized: {}", uploadDir.toAbsolutePath());

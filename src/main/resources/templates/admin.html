@@ -15,6 +15,10 @@
                     <span class="font-bold">System Administration</span>
                 </div>
                 <div class="flex gap-4">
+                    <button class="btn btn-secondary" id="test-email-btn">
+                        <i data-lucide="mail-check"></i>
+                        <span>Test Email</span>
+                    </button>
                     <button class="btn btn-secondary" id="refresh-admin-btn">
                         <i data-lucide="refresh-cw"></i>
                         <span>Sync</span>
@@ -71,6 +75,29 @@
                 </section>
             </div>
         </main>
+    </div>
+
+    <!-- Test Email Modal -->
+    <div id="test-email-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
+        <div class="glass-card w-full max-w-md mx-4 space-y-4">
+            <div class="card-title">
+                <i data-lucide="mail-check"></i>
+                <span>Send Test Email</span>
+            </div>
+            <p class="text-sm text-secondary">Dispatch a live SMTP test to verify your email configuration.</p>
+            <div class="form-group">
+                <label class="nav-label p-0 lowercase mb-2">Recipient Address</label>
+                <input type="email" id="test-email-to" class="input-glass" placeholder="recipient@example.com">
+                <p class="text-xs text-secondary mt-1">Leave blank to send to the configured SMTP username.</p>
+            </div>
+            <div class="flex gap-3 justify-end">
+                <button id="test-email-cancel" class="btn btn-secondary">Cancel</button>
+                <button id="test-email-send" class="btn btn-primary">
+                    <i data-lucide="send"></i>
+                    <span>Send</span>
+                </button>
+            </div>
+        </div>
     </div>
 
     <script th:src="@{/js/modules/api.js}"></script>

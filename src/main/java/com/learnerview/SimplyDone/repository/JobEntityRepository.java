@@ -35,6 +35,11 @@ public interface JobEntityRepository extends JpaRepository<JobEntity, String> {
      * Find jobs by status.
      */
     List<JobEntity> findByStatus(JobStatus status);
+
+    /**
+     * Find jobs by multiple statuses.
+     */
+    List<JobEntity> findByStatusIn(List<JobStatus> statuses);
     
     /**
      * Find jobs by priority and status.

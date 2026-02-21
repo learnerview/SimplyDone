@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/head :: head}"></head>
+
+<body>
+    <div class="main-layout">
+        <nav th:replace="~{fragments/sidebar :: sidebar}"></nav>
+
+        <main class="main-content">
+            <header class="navbar glass-border-b">
+                <div class="breadcrumb">
+                    <span class="text-secondary">Core</span>
+                    <span class="mx-2">/</span>
+                    <span class="font-bold">Executed Jobs</span>
+                </div>
+                <div class="flex gap-4">
+                    <button id="refreshBtn" class="btn btn-secondary">
+                        <i data-lucide="refresh-cw"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="mt-8 space-y-8">
+                <!-- Stats -->
+                <div class="stat-grid">
+                    <div class="glass-card overflow-hidden">
+                        <div class="text-xs text-secondary uppercase font-semibold mb-1">Executed Jobs</div>
+                        <div id="executedCount" class="text-3xl font-bold text-success">-</div>
+                        <p class="text-[10px] text-secondary mt-2">Successfully completed</p>
+                    </div>
+                    <div class="glass-card overflow-hidden">
+                        <div class="text-xs text-secondary uppercase font-semibold mb-1">Failed Jobs</div>
+                        <div id="failedCount" class="text-3xl font-bold text-danger">-</div>
+                        <p class="text-[10px] text-secondary mt-2">Encountered errors</p>
+                    </div>
+                </div>
+
+                <!-- Jobs Table -->
+                <section class="glass-card">
+                    <div class="card-title text-sm mb-4">
+                        <i data-lucide="check-circle-2"></i>
+                        <span>Completed Job History</span>
+                    </div>
+                    <div id="jobsTableContainer">
+                        <div class="flex items-center justify-center py-12">
+                            <i data-lucide="loader-2" class="animate-spin w-8 h-8 text-brand-500"></i>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script th:src="@{/js/modules/api.js}"></script>
+    <script th:src="@{/js/modules/theme.js}"></script>
+    <script th:src="@{/js/modules/ui.js}"></script>
+    <script th:src="@{/js/modules/toast.js}"></script>
+    <script>
+        lucide.createIcons();
+
+        async function loadExecutedJobs() {
+            try {
+                const response = await fetch('/api/admin/jobs/executed');
+                if (!response.ok) throw new Error('Failed to fetch executed jobs');
+                const result = await response.json();
+                const jobs = result.data || [];
+
+                const executed = jobs.filter(j => j.status === 'EXECUTED');
+                const failed = jobs.filter(j => j.status === 'FAILED');
+
+                document.getElementById('executedCount').textContent = executed.length;
+                document.getElementById('failedCount').textContent = failed.length;
+
+                renderJobsTable(jobs);
+            } catch (err) {
+                document.getElementById('jobsTableContainer').innerHTML = `
+                    <div class="text-center py-12">
+                        <i data-lucide="alert-circle" class="mx-auto w-10 h-10 text-danger mb-3"></i>
+                        <p class="text-secondary text-sm">Could not load executed jobs. PostgreSQL may be unavailable or no jobs have been executed yet.</p>
+                        <p class="text-xs text-secondary mt-1 font-mono">${err.message}</p>
+                    </div>
+                `;
+                lucide.createIcons();
+            }
+        }
+
+        function renderJobsTable(jobs) {
+            const container = document.getElementById('jobsTableContainer');
+            if (!jobs || jobs.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12">
+                        <i data-lucide="inbox" class="mx-auto w-10 h-10 text-secondary mb-3"></i>
+                        <p class="text-secondary text-sm">No executed jobs found yet.</p>
+                        <p class="text-xs text-secondary mt-1">Jobs will appear here once they have been processed.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            const rows = jobs.map(job => {
+                const statusColor = job.status === 'EXECUTED' ? 'success' : 'danger';
+                const executedAt = job.executedAt ? new Date(job.executedAt).toLocaleString() : '-';
+                const submittedAt = job.submittedAt ? new Date(job.submittedAt).toLocaleString() : '-';
+                return `
+                    <tr class="hover:bg-zinc-50/50 transition-colors">
+                        <td class="font-mono text-xs text-zinc-400">${(job.id || '').substring(0, 8)}&hellip;</td>
+                        <td>
+                            <span class="text-xs font-semibold px-2 py-1 rounded bg-zinc-100/10">
+                                ${job.jobType || 'UNKNOWN'}
+                            </span>
+                        </td>
+                        <td class="text-xs">${job.userId || '-'}</td>
+                        <td>
+                            <span class="badge bg-${statusColor}/10 text-${statusColor}">${job.status}</span>
+                        </td>
+                        <td class="text-xs text-secondary">${submittedAt}</td>
+                        <td class="text-xs text-secondary">${executedAt}</td>
+                        <td class="text-xs text-danger font-mono">${job.errorMessage ? job.errorMessage.substring(0, 60) + (job.errorMessage.length > 60 ? '…' : '') : ''}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-xs text-secondary border-b border-zinc-100/10">
+                                <th class="pb-3 pr-4">Job ID</th>
+                                <th class="pb-3 pr-4">Type</th>
+                                <th class="pb-3 pr-4">User</th>
+                                <th class="pb-3 pr-4">Status</th>
+                                <th class="pb-3 pr-4">Submitted</th>
+                                <th class="pb-3 pr-4">Executed At</th>
+                                <th class="pb-3">Error</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobsTableBody">${rows}</tbody>
+                    </table>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', loadExecutedJobs);
+
+        let pollInterval = setInterval(loadExecutedJobs, 10000);
+
+        // Pause polling when the tab is not visible to reduce server load
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                clearInterval(pollInterval);
+            } else {
+                loadExecutedJobs();
+                pollInterval = setInterval(loadExecutedJobs, 10000);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', loadExecutedJobs);
+    </script>
+</body>
+
+</html>

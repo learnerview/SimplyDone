@@ -128,6 +128,13 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success(userJobs, "User jobs retrieved"));
     }
 
+    @GetMapping("/jobs/executed")
+    public ResponseEntity<ApiResponse<?>> getExecutedJobs() {
+        var jobs = adminService.getCompletedJobs();
+        log.debug("Completed jobs retrieved from PostgreSQL - {} jobs", jobs.size());
+        return ResponseEntity.ok(ApiResponse.success(jobs, "Completed jobs retrieved (" + jobs.size() + " total)"));
+    }
+
     @DeleteMapping("/jobs/{priority}/{jobId}")
     public ResponseEntity<ApiResponse<String>> cancelJob(
             @PathVariable String priority,

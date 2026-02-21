@@ -1,8 +1,10 @@
 package com.learnerview.SimplyDone.service.strategy;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.learnerview.SimplyDone.model.Job;
 import com.learnerview.SimplyDone.model.JobType;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -23,7 +25,10 @@ import java.util.stream.Collectors;
  */
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class ReportGenerationJobStrategy implements JobExecutionStrategy {
+
+    private final ObjectMapper objectMapper;
 
     @Override
     public JobType getSupportedJobType() {
@@ -234,8 +239,7 @@ public class ReportGenerationJobStrategy implements JobExecutionStrategy {
         report.put("generatedAt", LocalDateTime.now().toString());
         report.put("data", params.get("data"));
 
-        // Simple JSON serialization (for production, use Jackson)
-        String json = convertToJson(report);
+        String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(report);
 
         Files.writeString(Paths.get(outputPath), json, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         log.debug("JSON report generated: {}", outputPath);
@@ -397,33 +401,5 @@ public class ReportGenerationJobStrategy implements JobExecutionStrategy {
             return "\"" + value.replace("\"", "\"\"") + "\"";
         }
         return value;
-    }
-
-    private String convertToJson(Object obj) {
-        // Simple JSON conversion (in production, use ObjectMapper from Jackson)
-        if (obj == null) return "null";
-        if (obj instanceof String) return "\"" + escapeJson((String) obj) + "\"";
-        if (obj instanceof Number || obj instanceof Boolean) return obj.toString();
-        if (obj instanceof Map) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> map = (Map<String, Object>) obj;
-            return map.entrySet().stream()
-                    .map(e -> "\"" + escapeJson(e.getKey()) + "\":" + convertToJson(e.getValue()))
-                    .collect(Collectors.joining(",", "{", "}"));
-        }
-        if (obj instanceof Collection) {
-            return ((Collection<?>) obj).stream()
-                    .map(this::convertToJson)
-                    .collect(Collectors.joining(",", "[", "]"));
-        }
-        return "\"" + escapeJson(obj.toString()) + "\"";
-    }
-
-    private String escapeJson(String text) {
-        return text.replace("\\", "\\\\")
-                   .replace("\"", "\\\"")
-                   .replace("\n", "\\n")
-                   .replace("\r", "\\r")
-                   .replace("\t", "\\t");
     }
 }

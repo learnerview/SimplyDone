@@ -27,6 +27,7 @@ class JobWorkerTest {
     void setUp() {
         schedulerProperties = new SchedulerProperties();
         schedulerProperties.getWorker().setIntervalMs(1000);
+        schedulerProperties.getWorker().setMaxJobsPerCycle(1); // unit tests: one job per cycle
         jobWorker = new JobWorker(jobService, schedulerProperties);
     }
 

@@ -83,7 +83,7 @@ public class SmtpEmailService {
             helper.setFrom(from);
             helper.setTo(to);
             helper.setSubject(subject);
-            helper.setText(body, true); // Set to true for HTML
+            helper.setText(appendSimplyDoneBranding(body), true); // Set to true for HTML
             
             senderToUse.send(message);
             
@@ -107,5 +107,19 @@ public class SmtpEmailService {
      */
     public Map<String, Object> sendEmail(String to, String subject, String body) throws MessagingException {
         return sendEmail(to, subject, body, null, null);
+    }
+
+    /**
+     * Appends a SimplyDone branding footer to the email body.
+     */
+    private String appendSimplyDoneBranding(String body) {
+        String footer = "<br/><hr style='border:none;border-top:1px solid #e5e7eb;margin-top:24px'/>"
+            + "<p style='font-size:11px;color:#9ca3af;margin-top:8px;font-family:sans-serif'>"
+            + "Sent by <strong>SimplyDone</strong> &mdash; open-source priority job scheduler."
+            + "</p>";
+        if (body != null && body.contains("</body>")) {
+            return body.replaceFirst("(?i)</body>", footer + "</body>");
+        }
+        return (body != null ? body : "") + footer;
     }
 }

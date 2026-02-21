@@ -103,6 +103,14 @@ Form for `CLEANUP` jobs. Fields:
 
 File upload interface. Allows uploading CSV, JSON, and other data files that are referenced by path in job parameters (particularly for `DATA_PROCESS` and `REPORT_GENERATION`). Displays the server-side file path after upload for easy copy-paste into the parameter fields.
 
+### Rate Limits ( /rate-limits )
+
+Per-user rate limit inspector.
+
+- Enter any User ID to query the current window usage from Redis.
+- Displays: requests used in the active 60-second window, maximum allowed, seconds until the window resets, a colour-coded usage progress bar, and an Under Limit / Throttled badge.
+- Explains how the fixed-window rate limiting works (Redis `INCR` + TTL).
+
 ### Diagnostics ( /system-health )
 
 Displays live system metrics fetched from `/api/admin/health`, `/api/admin/stats`, and `/api/admin/performance`:
@@ -113,6 +121,14 @@ Displays live system metrics fetched from `/api/admin/health`, `/api/admin/stats
 - Throughput metrics: executed jobs, rejected jobs, queue sizes, JVM memory
 
 Data refreshes automatically every 5 seconds.
+
+### Executed Jobs ( /executed-jobs )
+
+Historical table of all jobs that have reached a terminal state (EXECUTED or FAILED), sourced from PostgreSQL.
+
+- Count cards show executed vs. failed totals.
+- Table columns: Job ID, Type, User, Status, Submitted At, Executed At, Error (if any).
+- Auto-refreshes every 10 seconds, paused via the Page Visibility API when the tab is not in focus.
 
 ### Dead Letter ( /dlq )
 
@@ -128,10 +144,10 @@ System administration interface with two sections:
 
 ## Navigation
 
-All pages share a sidebar with three groups:
-- **Core**: Dashboard, All Jobs
+All pages share a sidebar with four groups:
+- **Core**: Dashboard, All Jobs, Executed Jobs
 - **Services**: Email and Comms, Data Engine, API Integrator, File Systems, Notifications, Reports, Maintenance
-- **Management**: Asset Vault, Diagnostics
+- **Management**: Asset Vault, Rate Limits, Diagnostics
 - **Reliability**: Dead Letter
 
 The dark/light mode toggle is at the bottom of the sidebar.

@@ -107,6 +107,9 @@ public class ReportGenerationJobStrategy implements JobExecutionStrategy {
 
     @Override
     public long estimateExecutionTime(Job job) {
+        if (job.getParameters() == null) {
+            return 5;
+        }
         Object data = job.getParameters().get("data");
         String format = (String) job.getParameters().get("format");
 
@@ -114,6 +117,10 @@ public class ReportGenerationJobStrategy implements JobExecutionStrategy {
         int dataSize = 0;
         if (data instanceof Collection) {
             dataSize = ((Collection<?>) data).size();
+        }
+
+        if (format == null) {
+            return 5;
         }
 
         switch (format.toUpperCase()) {

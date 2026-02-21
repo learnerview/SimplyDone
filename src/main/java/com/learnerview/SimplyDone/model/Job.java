@@ -1,5 +1,6 @@
 package com.learnerview.SimplyDone.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -78,6 +79,7 @@ public class Job {
     private String errorMessage;
 
     // returns true if the job's scheduled run time has already passed
+    @JsonIgnore
     public boolean isReadyForExecution() {
         return Instant.now().isAfter(executeAt) || Instant.now().equals(executeAt);
     }

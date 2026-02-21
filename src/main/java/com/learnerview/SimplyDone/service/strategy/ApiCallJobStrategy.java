@@ -72,8 +72,16 @@ public class ApiCallJobStrategy implements JobExecutionStrategy {
                 
                 // Validate response
                 validateResponse(response, params);
-                
-                // Store response if needed
+
+                // Always store the response so callers can inspect it via GET /api/jobs/{id}
+                String rawBody = response.getBody();
+                job.setExecutionResult(Map.of(
+                    "statusCode", response.getStatusCode().value(),
+                    "body", rawBody != null ? rawBody : "",
+                    "attempt", attempt + 1
+                ));
+
+                // Legacy store hook (kept for backward compatibility)
                 if (Boolean.TRUE.equals(params.get("storeResponse"))) {
                     storeApiResponse(job.getId(), response);
                 }

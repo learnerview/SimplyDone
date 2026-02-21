@@ -134,4 +134,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
   updateAdminData();
   setInterval(updateAdminData, 10000);
+
+  // test-email modal
+  const modal = document.getElementById('test-email-modal');
+  document.getElementById('test-email-btn').addEventListener('click', () => {
+    document.getElementById('test-email-to').value = '';
+    modal.classList.remove('hidden');
+    lucide.createIcons();
+  });
+  document.getElementById('test-email-cancel').addEventListener('click', () => modal.classList.add('hidden'));
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+
+  document.getElementById('test-email-send').addEventListener('click', async () => {
+    const to = document.getElementById('test-email-to').value.trim();
+    const btn = document.getElementById('test-email-send');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i><span>Sending…</span>';
+    lucide.createIcons();
+    try {
+      const result = await API.testEmail(to || null);
+      modal.classList.add('hidden');
+      UI.showToast(`Test email sent to ${result.to}`, 'success');
+    } catch (err) {
+      UI.showToast(err.message || 'Failed to send test email', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+      lucide.createIcons();
+    }
+  });
 });

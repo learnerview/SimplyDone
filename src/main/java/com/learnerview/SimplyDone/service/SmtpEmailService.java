@@ -103,9 +103,29 @@ public class SmtpEmailService {
         }
     }
 
+    /** HTML body for the SMTP connectivity test email. */
+    private static final String TEST_EMAIL_BODY =
+            "<p>This is an automated SMTP connectivity test sent by <strong>SimplyDone</strong>.</p>"
+            + "<p>If you received this message, your email configuration is working correctly.</p>";
+
     /**
-     * Backward compatibility method
+     * Returns the configured default sender address (SMTP_USERNAME).
      */
+    public String getDefaultFromAddress() {
+        return defaultFromAddress;
+    }
+
+    /**
+     * Sends a test email to verify SMTP connectivity.
+     *
+     * @param to Recipient address; if null or blank, defaults to the configured sender address.
+     * @return Result map with at least {@code success}, {@code to}, {@code from}, {@code subject}.
+     * @throws MessagingException if the SMTP handshake fails.
+     */
+    public Map<String, Object> sendTestEmail(String to) throws MessagingException {
+        String recipient = (to != null && !to.trim().isEmpty()) ? to.trim() : defaultFromAddress;
+        return sendEmail(recipient, "SimplyDone — SMTP connection test", TEST_EMAIL_BODY);
+    }
     public Map<String, Object> sendEmail(String to, String subject, String body) throws MessagingException {
         return sendEmail(to, subject, body, null, null);
     }

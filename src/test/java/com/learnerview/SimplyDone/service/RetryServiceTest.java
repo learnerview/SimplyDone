@@ -201,6 +201,8 @@ class RetryServiceTest {
     }
 
 
+    @Test
+    @DisplayName("resetRetryAttempts is a no-op in the current implementation (attemptCount lives on the job)")
     void resetRetryAttempts_allowsFreshRetry() {
         // In the current implementation, resetRetryAttempts is a no-op because
         // retry counts are tracked via job.attemptCount, not an internal map.

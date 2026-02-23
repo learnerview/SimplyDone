@@ -23,6 +23,7 @@ services:
     name: simplydone-cache
     plan: free
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
 
 databases:
   - name: simplydone-db

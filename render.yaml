@@ -19,13 +19,13 @@ services:
       - key: JAVA_TOOL_OPTIONS
         value: -Xmx384m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=200
 
+  - type: redis
+    name: simplydone-cache
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+
 databases:
   - name: simplydone-db
     plan: free
     databaseName: simplydone
     user: simplydone
-
-redis:
-  - name: simplydone-cache
-    plan: free
-    maxmemoryPolicy: allkeys-lru

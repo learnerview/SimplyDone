@@ -11,7 +11,7 @@ name: Keep Alive
 
 on:
   schedule:
-    - cron: '*/14 * * * *'
+    - cron: '*/7 * * * *'
   workflow_dispatch:            # allows manual trigger from GitHub Actions tab
 
 jobs:

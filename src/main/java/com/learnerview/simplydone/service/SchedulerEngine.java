@@ -2,13 +2,17 @@ package com.learnerview.simplydone.service;
 
 import com.learnerview.simplydone.config.SchedulerProperties;
 import com.learnerview.simplydone.model.JobPriority;
+import com.learnerview.simplydone.model.JobStatus;
 import com.learnerview.simplydone.repository.JobEntityRepository;
 import com.learnerview.simplydone.repository.QueueRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Deficit Round-Robin scheduler.
@@ -25,6 +29,7 @@ import java.util.Optional;
  * Time per cycle: O(P) where P = number of priority levels (3 = constant).
  */
 @Service
+@Profile("worker")
 @Slf4j
 public class SchedulerEngine {
 
@@ -36,6 +41,8 @@ public class SchedulerEngine {
     private final int[] weights;
     private final int[] deficit;
     private final int totalWeight;
+    private final int leaseTimeoutSeconds;
+    private final String workerId;
 
     public SchedulerEngine(QueueRepository queueRepo, JobEntityRepository jobRepo,
                            JobExecutorService executor, SchedulerProperties props) {
@@ -50,6 +57,9 @@ public class SchedulerEngine {
         };
         this.deficit = new int[priorities.length];
         this.totalWeight = weights[0] + weights[1] + weights[2];
+        this.leaseTimeoutSeconds = props.getWorker().getLeaseTimeoutSeconds();
+        this.workerId = (System.getenv("HOSTNAME") != null ? System.getenv("HOSTNAME") : "worker")
+            + "-" + UUID.randomUUID().toString().substring(0, 8);
     }
 
     @Scheduled(fixedDelayString = "${simplydone.scheduler.polling-interval-ms:1000}")
@@ -79,8 +89,16 @@ public class SchedulerEngine {
         // Step 4: Deduct deficit
         deficit[bestIdx] -= totalWeight;
 
-        // Step 5: Execute
+        // Step 5: CAS claim in DB with lease
         String jobId = claimed.get();
+        Instant now = Instant.now();
+        String leaseToken = UUID.randomUUID().toString();
+        Instant visibleUntil = now.plusSeconds(leaseTimeoutSeconds);
+        int updated = jobRepo.claimForExecution(jobId, leaseToken, workerId, visibleUntil, now,
+            JobStatus.QUEUED, JobStatus.RUNNING);
+        if (updated != 1) return;
+
+        // Step 6: Execute
         jobRepo.findById(jobId).ifPresentOrElse(
                 executor::execute,
                 () -> log.warn("Claimed job {} not found in DB", jobId)

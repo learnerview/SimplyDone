@@ -8,10 +8,12 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "jobs", indexes = {
-        @Index(name = "idx_status_scheduled", columnList = "status, scheduledAt"),
+    @Index(name = "idx_status_next_run", columnList = "status, nextRunAt"),
+    @Index(name = "idx_status_visible_at", columnList = "status, visibleAt"),
         @Index(name = "idx_job_type", columnList = "jobType"),
-        @Index(name = "idx_user_id", columnList = "userId"),
-        @Index(name = "idx_workflow_id", columnList = "workflowId")
+    @Index(name = "idx_producer", columnList = "producer")
+}, uniqueConstraints = {
+    @UniqueConstraint(name = "uk_jobs_producer_idempotency", columnNames = {"producer", "idempotency_key"})
 })
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class JobEntity {
@@ -22,6 +24,12 @@ public class JobEntity {
 
     @Column(nullable = false, length = 100)
     private String jobType;
+
+    @Column(nullable = false, length = 120)
+    private String producer;
+
+    @Column(name = "idempotency_key", nullable = false, length = 150)
+    private String idempotencyKey;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -37,11 +45,27 @@ public class JobEntity {
     @Column(columnDefinition = "TEXT")
     private String result;
 
-    @Column(length = 100)
-    private String userId;
-
     @Column(nullable = false)
-    private Instant scheduledAt;
+    private Instant nextRunAt;
+
+    private Instant visibleAt;
+
+    @Column(length = 100)
+    private String leaseOwner;
+
+    @Column(length = 64)
+    private String leaseToken;
+
+    @Column(length = 20)
+    private String executionType;
+
+    @Column(length = 1000)
+    private String executionEndpoint;
+
+    private Integer timeoutSeconds;
+
+    @Column(length = 2000)
+    private String callbackUrl;
 
     private Instant startedAt;
     private Instant completedAt;
@@ -50,13 +74,7 @@ public class JobEntity {
     private int attemptCount = 0;
 
     @Builder.Default
-    private int maxRetries = 3;
-
-    @Column(length = 36)
-    private String workflowId;
-
-    @Column(columnDefinition = "TEXT")
-    private String dependsOn;
+    private int maxAttempts = 3;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

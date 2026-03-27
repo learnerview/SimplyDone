@@ -1,12 +1,11 @@
 package com.learnerview.simplydone.controller;
 
 import com.learnerview.simplydone.dto.*;
-import com.learnerview.simplydone.handler.JobHandlerRegistry;
 import com.learnerview.simplydone.service.AdminService;
 import com.learnerview.simplydone.service.JobSubmissionService;
-import com.learnerview.simplydone.service.WorkflowService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -18,13 +17,12 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/jobs")
+@Profile("api")
 @RequiredArgsConstructor
 public class JobController {
 
     private final JobSubmissionService submissionService;
-    private final WorkflowService workflowService;
     private final AdminService adminService;
-    private final JobHandlerRegistry registry;
 
     @PostMapping
     public ResponseEntity<ApiResponse<JobSubmissionResponse>> submitJob(
@@ -33,15 +31,6 @@ public class JobController {
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(ApiResponse.<JobSubmissionResponse>builder()
                         .success(true).message("Job queued").data(resp).build());
-    }
-
-    @PostMapping("/workflow")
-    public ResponseEntity<ApiResponse<List<JobSubmissionResponse>>> submitWorkflow(
-            @Valid @RequestBody WorkflowRequest request) {
-        List<JobSubmissionResponse> resp = workflowService.submitWorkflow(request);
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(ApiResponse.<List<JobSubmissionResponse>>builder()
-                        .success(true).message("Workflow queued").data(resp).build());
     }
 
     @GetMapping("/{id}")
@@ -69,8 +58,13 @@ public class JobController {
 
     @GetMapping("/types")
     public ResponseEntity<ApiResponse<List<HandlerInfoResponse>>> getTypes() {
+        HandlerInfoResponse external = HandlerInfoResponse.builder()
+                .jobType("external")
+                .description("Generic external HTTP execution")
+                .handlerClass("ExternalHttpExecutor")
+                .build();
         return ResponseEntity.ok(ApiResponse.<List<HandlerInfoResponse>>builder()
-                .success(true).data(registry.getHandlerInfo()).build());
+                .success(true).data(List.of(external)).build());
     }
 
     @GetMapping("/health")
@@ -78,7 +72,7 @@ public class JobController {
         QueueStatsResponse stats = adminService.getStats();
         Map<String, Object> health = Map.of(
                 "status", "UP",
-                "handlers", registry.getRegisteredTypes().size(),
+                "handlers", 1,
                 "queued", stats.getTotalQueued(),
                 "running", stats.getTotalRunning()
         );

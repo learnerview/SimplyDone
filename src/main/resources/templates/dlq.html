@@ -25,7 +25,7 @@
                             <code th:text="${#strings.abbreviate(job.id, 11)}">abc...</code></span></td>
                         <td th:text="${job.jobType}">echo</td>
                         <td th:text="${job.priority}">NORMAL</td>
-                        <td th:text="${job.attemptCount} + '/' + ${job.maxRetries}">3/3</td>
+                        <td th:text="${job.attemptCount} + '/' + ${job.maxAttempts}">3/3</td>
                         <td><code th:text="${#strings.abbreviate(job.result ?: '—', 50)}">error msg</code></td>
                         <td th:text="${job.completedAt}">—</td>
                         <td><button class="btn btn-primary btn-sm" th:onclick="'retryDlqJob(\'' + ${job.id} + '\')'">Retry</button></td>

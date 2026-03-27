@@ -39,17 +39,6 @@ function toast(msg, type = 'info', durationMs = 4000) {
     el.addEventListener('click', () => { clearTimeout(timer); remove(); });
 }
 
-/* Legacy compat — some inline HTML still calls showResult */
-function showResult(msg, isError = false) {
-    const box = document.getElementById('result-box');
-    if (box) {
-        box.style.display = 'block';
-        box.style.borderColor = isError ? 'var(--danger)' : 'var(--success)';
-        box.textContent = typeof msg === 'object' ? JSON.stringify(msg, null, 2) : msg;
-    }
-    toast(typeof msg === 'object' ? JSON.stringify(msg) : msg, isError ? 'error' : 'success');
-}
-
 /* ── SSE – Server-Sent Events ────────────────────────────── */
 let _sse = null;
 let _sseReconnectTimer = null;
@@ -98,7 +87,7 @@ function _handleSseJob(evtName, d) {
             toast(`Completed: ${short}… — ${d.result || 'OK'}`, 'success', 4000);
             break;
         case 'JOB_RETRY':
-            toast(`Retry ${d.attempt}/${d.maxRetries}: ${short}… in ${(d.retryInMs / 1000).toFixed(1)}s`, 'warn', 5000);
+            toast(`Retry ${d.attempt}/${d.maxAttempts}: ${short}… in ${(d.retryInMs / 1000).toFixed(1)}s`, 'warn', 5000);
             break;
         case 'JOB_FAILED':
             toast(`Failed → DLQ: ${short}…`, 'error', 6000);
@@ -164,24 +153,28 @@ function copyId(id) {
 
 /* ── Payload templates ───────────────────────────────────── */
 const PAYLOAD_TEMPLATES = {
-    'echo': {
-        template: '{"message": "hello world"}',
-        hint: 'Required: message (string) — returned as the job result'
-    },
-    'delay': {
-        template: '{"seconds": 3}',
-        hint: 'Required: seconds (number) — how long to sleep (simulates slow work)'
-    },
-    'http-call': {
+    'external': {
         template: JSON.stringify({
-            url: 'https://httpbin.org/post',
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: '{"key": "value"}'
+            orderId: '123',
+            event: 'order.confirmed'
         }, null, 2),
-        hint: 'Required: url. Optional: method (GET|POST, default GET), headers (object), body (string for POST)'
+        hint: 'Payload is passed as request body to the configured execution endpoint.'
     }
 };
+
+async function loadJobTypeTemplates() {
+    try {
+        const data = await api('/api/jobs/types');
+        const handlers = data.data || [];
+        handlers.forEach(h => {
+            if (PAYLOAD_TEMPLATES[h.jobType]) return;
+            PAYLOAD_TEMPLATES[h.jobType] = {
+                template: '{}',
+                hint: h.description || 'No payload template available for this handler yet.'
+            };
+        });
+    } catch (_) {}
+}
 
 function updatePayloadTemplate(jobType) {
     const payloadEl = document.getElementById('payload');
@@ -201,25 +194,44 @@ function updatePayloadTemplate(jobType) {
 async function submitJob() {
     const jobType  = document.getElementById('jobType')?.value;
     const priority = document.getElementById('priority')?.value || 'NORMAL';
-    const userId   = document.getElementById('userId')?.value   || 'anonymous';
-    let payload = {};
-    try { payload = JSON.parse(document.getElementById('payload')?.value || '{}'); } catch (_) {}
+    const producer = document.getElementById('producer')?.value || 'anonymous';
+    const executionEndpoint = document.getElementById('executionEndpoint')?.value || '';
+    const timeoutSeconds = Number(document.getElementById('timeoutSeconds')?.value || '10');
+    const callbackUrl = document.getElementById('callbackUrl')?.value || null;
+    const customIdempotencyKey = document.getElementById('idempotencyKey')?.value || '';
 
+    if (!executionEndpoint) {
+        toast('Execution endpoint is required', 'error');
+        return;
+    }
+
+    let payload = {};
+    try {
+        payload = JSON.parse(document.getElementById('payload')?.value || '{}');
+    } catch (_) {
+        toast('Payload must be valid JSON', 'error');
+        return;
+    }
+
+    const idempotencyKey = customIdempotencyKey || (producer + '-' + Date.now());
     const data = await api('/api/jobs', {
         method: 'POST',
-        body: JSON.stringify({ jobType, priority, userId, payload })
+        body: JSON.stringify({
+            jobType,
+            producer,
+            idempotencyKey,
+            priority,
+            payload,
+            execution: {
+                type: 'HTTP',
+                endpoint: executionEndpoint
+            },
+            timeoutSeconds,
+            callbackUrl
+        })
     });
-    toast('Job submitted: ' + (data.data?.id?.substring(0, 8) || ''), 'success');
-    loadJobs();
-}
-
-async function submitWorkflow() {
-    const raw = document.getElementById('workflowJson')?.value;
-    if (!raw) return;
-    let body;
-    try { body = JSON.parse(raw); } catch (_) { toast('Invalid JSON', 'error'); return; }
-    const data = await api('/api/jobs/workflow', { method: 'POST', body: JSON.stringify(body) });
-    toast('Workflow submitted (' + (data.data?.length || 0) + ' jobs)', 'success');
+    const shortId = (data.data?.jobId || '').substring(0, 8);
+    toast('Job submitted: ' + shortId, 'success');
     loadJobs();
 }
 
@@ -259,8 +271,7 @@ function renderJobs() {
 
     tbody.innerHTML = jobs.map(j => {
         const shortId = j.id?.substring(0, 8) || '';
-        const retries = j.attemptCount > 0 ? `${j.attemptCount} / ${j.maxRetries}` : '—';
-        const result  = j.result ? escape(j.result).substring(0, 60) : '—';
+        const retries = j.attemptCount > 0 ? `${j.attemptCount} / ${j.maxAttempts}` : '—';
         const payloadStr = j.payload ? JSON.stringify(j.payload, null, 2) : '{}';
 
         return `<tr class="expand-toggle" onclick="toggleDetail('${j.id}')">
@@ -281,8 +292,8 @@ function renderJobs() {
                         <div class="detail-pre">${j.id}</div>
                     </div>
                     <div>
-                        <div class="detail-label">User</div>
-                        <div class="detail-pre">${escHtml(j.userId || '—')}</div>
+                        <div class="detail-label">Producer</div>
+                        <div class="detail-pre">${escHtml(j.producer || '—')}</div>
                     </div>
                     <div>
                         <div class="detail-label">Payload</div>
@@ -317,7 +328,7 @@ function applyFilters() { renderJobs(); }
 /* ── CSV export ──────────────────────────────────────────── */
 function exportCsv() {
     if (_allJobs.length === 0) { toast('No jobs to export', 'warn'); return; }
-    const cols = ['id', 'jobType', 'status', 'priority', 'attemptCount', 'maxRetries', 'userId', 'createdAt', 'result'];
+    const cols = ['id', 'jobType', 'producer', 'status', 'priority', 'attemptCount', 'maxAttempts', 'createdAt', 'result'];
     const lines = [cols.join(',')];
     _allJobs.forEach(j => {
         lines.push(cols.map(c => {
@@ -397,6 +408,8 @@ async function clearQueues() {
 
 /* ── Bootstrap ───────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
+    loadJobTypeTemplates();
+
     // Payload template on job form
     const jobTypeEl = document.getElementById('jobType');
     if (jobTypeEl) {

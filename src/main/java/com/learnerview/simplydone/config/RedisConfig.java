@@ -18,7 +18,7 @@ import java.time.Duration;
  *   - Free tier:  redis://red-xxx:6379            (no auth, no TLS, internal)
  *   - Paid tier:  rediss://user:pass@host:port     (TLS with auth)
  *
- * Falls back to localhost:6380 for local dev if REDIS_URL is not set.
+ * Falls back to localhost:6379 for local dev if REDIS_URL is not set.
  */
 @Configuration
 public class RedisConfig {
@@ -28,7 +28,7 @@ public class RedisConfig {
         String redisUrl = System.getenv("REDIS_URL");
 
         if (redisUrl == null || redisUrl.isBlank()) {
-            redisUrl = "redis://localhost:6380";
+            redisUrl = "redis://localhost:6379";
         }
 
         boolean useSsl = redisUrl.startsWith("rediss://");
@@ -56,7 +56,7 @@ public class RedisConfig {
                         .commandTimeout(Duration.ofSeconds(2));
 
         if (useSsl) {
-            clientConfigBuilder.useSsl().disablePeerVerification();
+            clientConfigBuilder.useSsl();
         }
 
         return new LettuceConnectionFactory(serverConfig, clientConfigBuilder.build());

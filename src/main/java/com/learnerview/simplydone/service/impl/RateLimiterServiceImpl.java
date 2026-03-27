@@ -35,10 +35,10 @@ public class RateLimiterServiceImpl implements RateLimiterService {
     }
 
     @Override
-    public void checkRateLimit(String userId) {
-        if (userId == null || userId.isBlank()) return;
+    public void checkRateLimit(String producer) {
+        if (producer == null || producer.isBlank()) return;
 
-        String key = "simplydone:ratelimit:" + userId;
+        String key = "simplydone:ratelimit:" + producer;
         long now = System.currentTimeMillis();
 
         try {
@@ -47,7 +47,7 @@ public class RateLimiterServiceImpl implements RateLimiterService {
 
             Long count = redis.opsForZSet().zCard(key);
             if (count != null && count >= maxRequests) {
-                throw new RateLimitExceededException(userId, windowMs / 1000);
+                throw new RateLimitExceededException(producer, windowMs / 1000);
             }
 
             // Record this request
@@ -56,7 +56,7 @@ public class RateLimiterServiceImpl implements RateLimiterService {
         } catch (RateLimitExceededException e) {
             throw e;
         } catch (Exception e) {
-            log.warn("Rate limiter error for {}, allowing: {}", userId, e.getMessage());
+            log.warn("Rate limiter error for {}, allowing: {}", producer, e.getMessage());
         }
     }
 }

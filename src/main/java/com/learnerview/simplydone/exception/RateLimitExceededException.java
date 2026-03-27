@@ -6,8 +6,8 @@ import lombok.Getter;
 public class RateLimitExceededException extends RuntimeException {
     private final long retryAfterSeconds;
 
-    public RateLimitExceededException(String userId, long retryAfterSeconds) {
-        super("Rate limit exceeded for '" + userId + "'. Retry after " + retryAfterSeconds + "s.");
+    public RateLimitExceededException(String producer, long retryAfterSeconds) {
+        super("Rate limit exceeded for producer '" + producer + "'. Retry after " + retryAfterSeconds + "s.");
         this.retryAfterSeconds = retryAfterSeconds;
     }
 }

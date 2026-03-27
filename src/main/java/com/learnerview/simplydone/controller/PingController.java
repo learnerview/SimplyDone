@@ -1,5 +1,6 @@
 package com.learnerview.simplydone.controller;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,6 +21,7 @@ import java.util.Map;
  * The browser ping (client-driven) and an external cron are the only reliable solutions.
  */
 @RestController
+@Profile("api")
 public class PingController {
 
     @GetMapping("/ping")

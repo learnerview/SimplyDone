@@ -12,6 +12,8 @@ public class SchedulerProperties {
     private final Scheduler scheduler = new Scheduler();
     private final RateLimit rateLimit = new RateLimit();
     private final Retry retry = new Retry();
+    private final Worker worker = new Worker();
+    private final Queue queue = new Queue();
 
     @Data
     public static class Scheduler {
@@ -38,5 +40,17 @@ public class SchedulerProperties {
         private int maxAttempts = 3;
         private int initialDelaySeconds = 5;
         private double backoffMultiplier = 2.0;
+    }
+
+    @Data
+    public static class Worker {
+        private int leaseTimeoutSeconds = 30;
+        private long retryPromoterIntervalMs = 1000;
+        private long leaseReaperIntervalMs = 5000;
+    }
+
+    @Data
+    public static class Queue {
+        private long maxDepth = 10000;
     }
 }

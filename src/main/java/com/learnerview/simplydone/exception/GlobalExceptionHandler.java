@@ -17,21 +17,16 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
-    @ExceptionHandler(HandlerNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBadHandler(HandlerNotFoundException ex) {
-        return respond(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
-    @ExceptionHandler(CyclicDependencyException.class)
-    public ResponseEntity<ApiResponse<Void>> handleCycle(CyclicDependencyException ex) {
-        return respond(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
     @ExceptionHandler(RateLimitExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleRateLimit(RateLimitExceededException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
                 .body(ApiResponse.<Void>builder().success(false).message(ex.getMessage()).build());
+    }
+
+    @ExceptionHandler(QueueFullException.class)
+    public ResponseEntity<ApiResponse<Void>> handleQueueFull(QueueFullException ex) {
+        return respond(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

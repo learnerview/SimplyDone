@@ -24,33 +24,34 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="userId">User ID</label>
-                    <input type="text" id="userId" placeholder="anonymous" value="anonymous">
+                    <label for="producer">Producer</label>
+                    <input type="text" id="producer" placeholder="order-service" value="order-service">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="executionEndpoint">Execution Endpoint</label>
+                    <input type="url" id="executionEndpoint" placeholder="https://api.example.com/process" value="https://httpbin.org/post">
+                </div>
+                <div class="form-group">
+                    <label for="timeoutSeconds">Timeout Seconds</label>
+                    <input type="number" id="timeoutSeconds" min="1" max="120" value="10">
+                </div>
+                <div class="form-group">
+                    <label for="callbackUrl">Callback URL (Optional)</label>
+                    <input type="url" id="callbackUrl" placeholder="https://myapp.com/result">
                 </div>
             </div>
             <div class="form-group">
+                <label for="idempotencyKey">Idempotency Key (Optional)</label>
+                <input type="text" id="idempotencyKey" placeholder="order-123">
+            </div>
+            <div class="form-group">
                 <label for="payload">Payload (JSON)</label>
-                <textarea id="payload">{"message": "hello world"}</textarea>
+                <textarea id="payload">{"orderId": "123", "event": "order.confirmed"}</textarea>
                 <small id="payload-hint" style="color: var(--text-muted); display: block; margin-top: .4rem;"></small>
             </div>
             <button class="btn btn-primary" onclick="submitJob()">Submit Job</button>
-        </div>
-
-        <div class="card" style="margin-top: 1.5rem;">
-            <h3>Submit Workflow (DAG)</h3>
-            <div class="form-group">
-                <label for="workflowJson">Workflow JSON</label>
-                <textarea id="workflowJson">{
-  "userId": "anonymous",
-  "jobs": [
-    {"id": "A", "jobType": "echo", "payload": {"step": "A"}},
-    {"id": "B", "jobType": "echo", "payload": {"step": "B"}, "dependsOn": ["A"]},
-    {"id": "C", "jobType": "echo", "payload": {"step": "C"}, "dependsOn": ["A"]},
-    {"id": "D", "jobType": "echo", "payload": {"step": "D"}, "dependsOn": ["B", "C"]}
-  ]
-}</textarea>
-            </div>
-            <button class="btn btn-primary" onclick="submitWorkflow()">Submit Workflow</button>
         </div>
 
         <div class="card" style="margin-top: 1.5rem;">
@@ -99,7 +100,7 @@
                         <td th:text="${job.jobType}">echo</td>
                         <td><span class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(job.status)}" th:text="${job.status}">QUEUED</span></td>
                         <td th:text="${job.priority}">NORMAL</td>
-                        <td th:text="${job.attemptCount == 0 ? '—' : job.attemptCount + ' / ' + job.maxRetries}">—</td>
+                        <td th:text="${job.attemptCount == 0 ? '—' : job.attemptCount + ' / ' + job.maxAttempts}">—</td>
                         <td th:text="${job.createdAt}">—</td>
                         <td th:text="${job.result ?: '—'}">—</td>
                     </tr>

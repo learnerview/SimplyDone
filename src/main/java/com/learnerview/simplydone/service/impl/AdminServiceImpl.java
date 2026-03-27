@@ -108,7 +108,7 @@ public class AdminServiceImpl implements AdminService {
         }
         job.setStatus(JobStatus.QUEUED);
         job.setAttemptCount(0);
-        job.setScheduledAt(Instant.now());
+        job.setNextRunAt(Instant.now());
         job.setCompletedAt(null);
         job.setResult(null);
         jobRepo.save(job);

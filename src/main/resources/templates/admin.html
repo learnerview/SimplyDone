@@ -71,7 +71,7 @@
         </div>
 
         <div class="card" style="margin-top: 1.5rem;">
-            <h3>Registered Handlers</h3>
+            <h3>Execution Types</h3>
             <table>
                 <thead>
                     <tr>
@@ -84,10 +84,10 @@
                     <tr th:each="h : ${handlers}">
                         <td><code th:text="${h.jobType}">echo</code></td>
                         <td th:text="${h.description}">—</td>
-                        <td><code th:text="${h.handlerClass}">EchoJobHandler</code></td>
+                            <td><code th:text="${h.handlerClass}">ExternalHttpExecutor</code></td>
                     </tr>
                     <tr th:if="${#lists.isEmpty(handlers)}">
-                        <td colspan="3" class="empty">No handlers registered</td>
+                        <td colspan="3" class="empty">No execution types registered</td>
                     </tr>
                 </tbody>
             </table>

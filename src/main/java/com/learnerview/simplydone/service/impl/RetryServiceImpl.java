@@ -6,7 +6,6 @@ import com.learnerview.simplydone.entity.JobExecutionLog;
 import com.learnerview.simplydone.model.JobStatus;
 import com.learnerview.simplydone.repository.JobEntityRepository;
 import com.learnerview.simplydone.repository.JobExecutionLogRepository;
-import com.learnerview.simplydone.repository.QueueRepository;
 import com.learnerview.simplydone.service.RetryService;
 import com.learnerview.simplydone.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
@@ -27,14 +26,13 @@ public class RetryServiceImpl implements RetryService {
 
     private final JobEntityRepository jobRepo;
     private final JobExecutionLogRepository logRepo;
-    private final QueueRepository queueRepo;
     private final SchedulerProperties props;
     private final SseEmitterService sseEmitterService;
 
     @Override
     public void handleFailure(JobEntity job, String errorMessage, long durationMs) {
         int attempt = job.getAttemptCount();
-        int maxRetries = job.getMaxRetries() > 0 ? job.getMaxRetries() : props.getRetry().getMaxAttempts();
+        int maxAttempts = job.getMaxAttempts() > 0 ? job.getMaxAttempts() : props.getRetry().getMaxAttempts();
 
         logRepo.save(JobExecutionLog.builder()
                 .jobId(job.getId())
@@ -44,25 +42,30 @@ public class RetryServiceImpl implements RetryService {
                 .durationMs(durationMs)
                 .build());
 
-        if (attempt < maxRetries) {
+        if (attempt < maxAttempts) {
             long delayMs = (long) (props.getRetry().getInitialDelaySeconds() * 1000
                     * Math.pow(props.getRetry().getBackoffMultiplier(), attempt));
 
             Instant nextRun = Instant.now().plusMillis(delayMs);
-            job.setScheduledAt(nextRun);
-            job.setStatus(JobStatus.QUEUED);
+            job.setStatus(JobStatus.RETRY_SCHEDULED);
+            job.setNextRunAt(nextRun);
+            job.setVisibleAt(null);
+            job.setLeaseOwner(null);
+            job.setLeaseToken(null);
             job.setAttemptCount(attempt + 1);
             jobRepo.save(job);
-            queueRepo.enqueue(job.getId(), job.getPriority(), nextRun.toEpochMilli());
 
-            log.info("Retrying job {} (attempt {}/{}) in {}ms", job.getId(), attempt + 1, maxRetries, delayMs);
+            log.info("Retrying job {} (attempt {}/{}) in {}ms", job.getId(), attempt + 1, maxAttempts, delayMs);
 
             sseEmitterService.broadcast("JOB_RETRY", Map.of(
-                    "id", job.getId(), "jobType", job.getJobType(), "status", "QUEUED",
-                    "attempt", attempt + 1, "maxRetries", maxRetries, "retryInMs", delayMs
+                    "id", job.getId(), "jobType", job.getJobType(), "status", "RETRY_SCHEDULED",
+                "attempt", attempt + 1, "maxAttempts", maxAttempts, "retryInMs", delayMs
             ));
         } else {
             job.setStatus(JobStatus.DLQ);
+            job.setVisibleAt(null);
+            job.setLeaseOwner(null);
+            job.setLeaseToken(null);
             job.setCompletedAt(Instant.now());
             job.setResult("Max retries exceeded: " + errorMessage);
             jobRepo.save(job);

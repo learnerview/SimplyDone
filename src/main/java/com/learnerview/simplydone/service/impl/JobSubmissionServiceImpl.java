@@ -6,7 +6,7 @@ import com.learnerview.simplydone.dto.JobSubmissionRequest;
 import com.learnerview.simplydone.dto.JobSubmissionResponse;
 import com.learnerview.simplydone.entity.JobEntity;
 import com.learnerview.simplydone.exception.JobNotFoundException;
-import com.learnerview.simplydone.handler.JobHandlerRegistry;
+import com.learnerview.simplydone.exception.QueueFullException;
 import com.learnerview.simplydone.mapper.JobMapper;
 import com.learnerview.simplydone.model.JobPriority;
 import com.learnerview.simplydone.model.JobStatus;
@@ -17,6 +17,7 @@ import com.learnerview.simplydone.service.RateLimiterService;
 import com.learnerview.simplydone.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -24,13 +25,13 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
+@Profile("api")
 @Slf4j
 @RequiredArgsConstructor
 public class JobSubmissionServiceImpl implements JobSubmissionService {
 
     private final JobEntityRepository jobRepo;
     private final QueueRepository queueRepo;
-    private final JobHandlerRegistry registry;
     private final RateLimiterService rateLimiter;
     private final SchedulerProperties props;
     private final JobMapper jobMapper;
@@ -38,26 +39,53 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
 
     @Override
     public JobSubmissionResponse submit(JobSubmissionRequest req) {
-        registry.getHandler(req.getJobType());
-        rateLimiter.checkRateLimit(req.getUserId());
+        rateLimiter.checkRateLimit(req.getProducer());
+
+        if (!"HTTP".equalsIgnoreCase(req.getExecution().getType())) {
+            throw new IllegalArgumentException("Unsupported execution.type: " + req.getExecution().getType());
+        }
+
+        long totalDepth = queueRepo.queueSize(JobPriority.HIGH)
+                + queueRepo.queueSize(JobPriority.NORMAL)
+                + queueRepo.queueSize(JobPriority.LOW);
+        if (totalDepth >= props.getQueue().getMaxDepth()) {
+            throw new QueueFullException(props.getQueue().getMaxDepth());
+        }
+
+        JobEntity existing = jobRepo.findByProducerAndIdempotencyKey(req.getProducer(), req.getIdempotencyKey())
+            .orElse(null);
+        if (existing != null) {
+            return JobSubmissionResponse.builder()
+                .jobId(existing.getId())
+                .status(existing.getStatus().name())
+                .jobType(existing.getJobType())
+                .priority(existing.getPriority().name())
+                .scheduledAt(existing.getNextRunAt())
+                .build();
+        }
 
         JobPriority priority = jobMapper.parsePriority(req.getPriority());
-        Instant scheduledAt = req.getScheduledAt() != null ? req.getScheduledAt() : Instant.now();
+        Instant nextRunAt = req.getNextRunAt() != null ? req.getNextRunAt() : Instant.now();
         String jobId = UUID.randomUUID().toString();
 
         JobEntity job = JobEntity.builder()
                 .id(jobId)
                 .jobType(req.getJobType())
+            .producer(req.getProducer())
+            .idempotencyKey(req.getIdempotencyKey())
                 .status(JobStatus.QUEUED)
                 .priority(priority)
                 .payload(jobMapper.serializePayload(req.getPayload()))
-                .userId(req.getUserId())
-                .scheduledAt(scheduledAt)
-                .maxRetries(req.getMaxRetries() != null ? req.getMaxRetries() : props.getRetry().getMaxAttempts())
+            .executionType(req.getExecution().getType())
+            .executionEndpoint(req.getExecution().getEndpoint())
+            .timeoutSeconds(req.getTimeoutSeconds())
+            .callbackUrl(req.getCallbackUrl())
+            .nextRunAt(nextRunAt)
+            .maxAttempts(req.getMaxAttempts() != null ? req.getMaxAttempts() : props.getRetry().getMaxAttempts())
                 .build();
 
         jobRepo.save(job);
-        queueRepo.enqueue(jobId, priority, scheduledAt.toEpochMilli());
+        queueRepo.enqueue(jobId, priority, nextRunAt.toEpochMilli());
         log.info("Job submitted: {} type={} priority={}", jobId, req.getJobType(), priority);
 
         sseEmitterService.broadcast("JOB_CREATED", Map.of(
@@ -65,7 +93,7 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
                 "jobType", req.getJobType(),
                 "status", "QUEUED",
                 "priority", priority.name(),
-                "userId", req.getUserId() != null ? req.getUserId() : "anonymous"
+            "producer", req.getProducer()
         ));
 
         return JobSubmissionResponse.builder()
@@ -73,7 +101,7 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
                 .status(JobStatus.QUEUED.name())
                 .jobType(req.getJobType())
                 .priority(priority.name())
-                .scheduledAt(scheduledAt)
+            .scheduledAt(nextRunAt)
                 .build();
     }
 
@@ -91,6 +119,9 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
         if (job.getStatus() == JobStatus.QUEUED) {
             queueRepo.remove(jobId, job.getPriority());
             job.setStatus(JobStatus.FAILED);
+            job.setVisibleAt(null);
+            job.setLeaseOwner(null);
+            job.setLeaseToken(null);
             job.setResult("Cancelled by user");
             job.setCompletedAt(Instant.now());
             jobRepo.save(job);

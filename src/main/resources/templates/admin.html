@@ -4,96 +4,140 @@
 <body>
     <th:block th:replace="~{fragments/sidebar}" th:with="active='admin'" />
     <div class="main">
-        <h1 class="page-title">Admin</h1>
+        <header class="header-strip">
+            <h1 class="page-title">Admin Console</h1>
+            <p style="color:var(--text-muted); font-size:0.9rem">Central management for clusters, identities, and handlers.</p>
+        </header>
 
-        <div class="grid grid-4">
-            <div class="card">
-                <h3>High Queue</h3>
-                <div class="value" id="stat-high" th:text="${stats.highQueueSize}">0</div>
+        <div class="viewport">
+            <div class="tabs">
+                <div class="tab-btn active" onclick="switchTab('stats', event)">Infrastructure</div>
+                <div class="tab-btn" onclick="switchTab('keys', event)">API Keys</div>
+                <div class="tab-btn" onclick="switchTab('handlers', event)">Registry</div>
             </div>
-            <div class="card">
-                <h3>Normal Queue</h3>
-                <div class="value" id="stat-normal" th:text="${stats.normalQueueSize}">0</div>
-            </div>
-            <div class="card">
-                <h3>Low Queue</h3>
-                <div class="value" id="stat-low" th:text="${stats.lowQueueSize}">0</div>
-            </div>
-            <div class="card">
-                <h3>DLQ</h3>
-                <div class="value" id="stat-dlq" th:text="${stats.totalDlq}">0</div>
-            </div>
-        </div>
 
-        <div class="grid grid-4" style="margin-top: 1rem;">
-            <div class="card">
-                <h3>Queued</h3>
-                <div class="value" id="stat-queued" th:text="${stats.totalQueued}">0</div>
+            <!-- Tab: Stats -->
+            <div id="tab-stats" class="tab-content">
+                <section class="section">
+                    <div class="section-header">
+                        <h3 class="section-title">Global Operational Health</h3>
+                        <div style="display:flex; gap:1rem;">
+                            <button class="btn btn-outline btn-sm" onclick="clearQueues()">Purge Queues</button>
+                            <button class="btn btn-primary btn-sm" onclick="loadStats()">Sync Cluster</button>
+                        </div>
+                    </div>
+                    <div class="metrics-bar" style="padding: 1.5rem 0; background: none; border-bottom: none;">
+                        <div class="metric-item">
+                            <div class="label">Total Queued</div>
+                            <div class="value" id="stat-queued">0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="label">Total Running</div>
+                            <div class="value" id="stat-running">0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="label">Total Success</div>
+                            <div class="value" id="stat-success">0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="label">Total Failed</div>
+                            <div class="value" id="stat-failed">0</div>
+                        </div>
+                    </div>
+                </section>
             </div>
-            <div class="card">
-                <h3>Running</h3>
-                <div class="value" id="stat-running" th:text="${stats.totalRunning}">0</div>
-            </div>
-            <div class="card">
-                <h3>Success</h3>
-                <div class="value" id="stat-success" th:text="${stats.totalSuccess}">0</div>
-            </div>
-            <div class="card">
-                <h3>Failed</h3>
-                <div class="value" id="stat-failed" th:text="${stats.totalFailed}">0</div>
-            </div>
-        </div>
 
-        <div class="grid grid-4" style="margin-top: 1rem;">
-            <div class="card">
-                <h3>Success Rate</h3>
-                <div class="value-sm" id="stat-success-rate">—</div>
+            <!-- Tab: Keys -->
+            <div id="tab-keys" class="tab-content" style="display: none;">
+                <section class="section">
+                    <div class="section-header">
+                        <h3 class="section-title">Multitenant Access Control</h3>
+                        <button class="btn btn-primary btn-sm" onclick="showCreateKeyModal()">+ Issue Key</button>
+                    </div>
+                    <div class="data-box">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Identity Label</th>
+                                    <th>Producer ID</th>
+                                    <th>Secret Key</th>
+                                    <th>Status</th>
+                                    <th>Role Profile</th>
+                                    <th>Copy</th>
+                                    <th>Governance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="keys-tbody">
+                                <tr><td colspan="6" class="empty">Accessing merchant security store...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </div>
-            <div class="card">
-                <h3>Retry Rate</h3>
-                <div class="value-sm" id="stat-retry-rate">—</div>
-            </div>
-            <div class="card">
-                <h3>Throughput</h3>
-                <div class="value-sm" id="stat-throughput">—</div>
-            </div>
-            <div class="card">
-                <h3>Avg Latency</h3>
-                <div class="value-sm" id="stat-latency">—</div>
-            </div>
-        </div>
 
-        <div class="card" style="margin-top: 1.5rem;">
-            <h3>Queue Management</h3>
-            <p style="color: var(--text-muted); margin-bottom: 1rem;">Clear all Redis priority queues. Jobs in the database are not affected.</p>
-            <button class="btn btn-danger" onclick="clearQueues()">Clear All Queues</button>
-            <div id="result-box" class="result-box"></div>
-        </div>
-
-        <div class="card" style="margin-top: 1.5rem;">
-            <h3>Execution Types</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Type</th>
-                        <th>Description</th>
-                        <th>Class</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr th:each="h : ${handlers}">
-                        <td><code th:text="${h.jobType}">echo</code></td>
-                        <td th:text="${h.description}">—</td>
-                            <td><code th:text="${h.handlerClass}">ExternalHttpExecutor</code></td>
-                    </tr>
-                    <tr th:if="${#lists.isEmpty(handlers)}">
-                        <td colspan="3" class="empty">No execution types registered</td>
-                    </tr>
-                </tbody>
-            </table>
+            <!-- Tab: Handlers -->
+            <div id="tab-handlers" class="tab-content" style="display: none;">
+                <section class="section">
+                    <div class="section-header">
+                        <h3 class="section-title">Unified Handlers Registry</h3>
+                    </div>
+                    <div class="data-box">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Job Type</th>
+                                    <th>Responsibility Profile</th>
+                                    <th>Implementation Core</th>
+                                </tr>
+                            </thead>
+                            <tbody id="handlers-tbody">
+                                <tr><td colspan="3" class="empty">Retrieving microservice manifest...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
         </div>
     </div>
+
+    <!-- Minimal Modal Overlay -->
+    <div id="key-modal" class="modal" style="display:none; position:fixed; z-index:2001; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter: blur(4px);">
+        <div style="max-width:440px; margin: 10% auto; background:var(--bg-alt); padding: 2rem; border-radius: var(--radius); border: 1px solid var(--border-strong);">
+            <h3 style="margin-bottom: 2rem; font-size: 1.25rem;">Issue Identity Token</h3>
+            <div class="form-group">
+                <label>Merchant / User Label</label>
+                <input type="text" id="newKeyLabel" placeholder="e.g. Sales Analytics Team">
+            </div>
+            <div class="form-group">
+                <label>Merchant Identifier (Producer ID)</label>
+                <input type="text" id="newKeyProducer" placeholder="sales-tenant-01">
+            </div>
+            <div class="form-group">
+                <label>Access Level</label>
+                <select id="newKeyIsAdmin">
+                    <option value="false">Standard Tenant</option>
+                    <option value="true">Global Administrator</option>
+                </select>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:2rem;">
+                <button class="btn btn-outline" onclick="closeKeyModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitCreateKey()">Generate Key</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toast-container" class="toast-container"></div>
     <script th:src="@{/js/app.js}"></script>
+    <script>
+        function switchTab(tab, event) {
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tab).style.display = 'block';
+            event.target.classList.add('active');
+            if (tab === 'keys') loadKeys();
+        }
+        function showCreateKeyModal() { document.getElementById('key-modal').style.display = 'block'; }
+        function closeKeyModal() { document.getElementById('key-modal').style.display = 'none'; }
+    </script>
 </body>
 </html>

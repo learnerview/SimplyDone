@@ -38,8 +38,8 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
     private final SseEmitterService sseEmitterService;
 
     @Override
-    public JobSubmissionResponse submit(JobSubmissionRequest req) {
-        rateLimiter.checkRateLimit(req.getProducer());
+    public JobSubmissionResponse submit(String producer, JobSubmissionRequest req) {
+        rateLimiter.checkRateLimit(producer);
 
         if (!"HTTP".equalsIgnoreCase(req.getExecution().getType())) {
             throw new IllegalArgumentException("Unsupported execution.type: " + req.getExecution().getType());
@@ -52,7 +52,7 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
             throw new QueueFullException(props.getQueue().getMaxDepth());
         }
 
-        JobEntity existing = jobRepo.findByProducerAndIdempotencyKey(req.getProducer(), req.getIdempotencyKey())
+        JobEntity existing = jobRepo.findByProducerAndIdempotencyKey(producer, req.getIdempotencyKey())
             .orElse(null);
         if (existing != null) {
             return JobSubmissionResponse.builder()
@@ -71,7 +71,7 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
         JobEntity job = JobEntity.builder()
                 .id(jobId)
                 .jobType(req.getJobType())
-            .producer(req.getProducer())
+            .producer(producer)
             .idempotencyKey(req.getIdempotencyKey())
                 .status(JobStatus.QUEUED)
                 .priority(priority)
@@ -88,12 +88,12 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
         queueRepo.enqueue(jobId, priority, nextRunAt.toEpochMilli());
         log.info("Job submitted: {} type={} priority={}", jobId, req.getJobType(), priority);
 
-        sseEmitterService.broadcast("JOB_CREATED", Map.of(
+        sseEmitterService.broadcast(producer, "JOB_CREATED", Map.of(
                 "id", jobId,
                 "jobType", req.getJobType(),
                 "status", "QUEUED",
                 "priority", priority.name(),
-            "producer", req.getProducer()
+            "producer", producer
         ));
 
         return JobSubmissionResponse.builder()
@@ -106,6 +106,13 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
     }
 
     @Override
+    public JobResponse getJob(String producer, String jobId) {
+        JobEntity job = jobRepo.findByProducerAndId(producer, jobId)
+                .orElseThrow(() -> new JobNotFoundException(jobId));
+        return jobMapper.toResponse(job);
+    }
+
+    @Override
     public JobResponse getJob(String jobId) {
         JobEntity job = jobRepo.findById(jobId)
                 .orElseThrow(() -> new JobNotFoundException(jobId));
@@ -113,8 +120,8 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
     }
 
     @Override
-    public void cancelJob(String jobId) {
-        JobEntity job = jobRepo.findById(jobId)
+    public void cancelJob(String producer, String jobId) {
+        JobEntity job = jobRepo.findByProducerAndId(producer, jobId)
                 .orElseThrow(() -> new JobNotFoundException(jobId));
         if (job.getStatus() == JobStatus.QUEUED) {
             queueRepo.remove(jobId, job.getPriority());
@@ -125,11 +132,21 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
             job.setResult("Cancelled by user");
             job.setCompletedAt(Instant.now());
             jobRepo.save(job);
-            sseEmitterService.broadcast("JOB_UPDATE", Map.of(
+            sseEmitterService.broadcast(producer, "JOB_UPDATE", Map.of(
                     "id", jobId, "status", "FAILED", "result", "Cancelled by user"
             ));
         } else {
             throw new IllegalArgumentException("Can only cancel QUEUED jobs, current: " + job.getStatus());
         }
+    }
+
+    @Override
+    public org.springframework.data.domain.Page<JobResponse> listJobs(String producer, org.springframework.data.domain.Pageable pageable) {
+        return jobRepo.findByProducerOrderByCreatedAtDesc(producer, pageable).map(jobMapper::toResponse);
+    }
+
+    @Override
+    public org.springframework.data.domain.Page<JobResponse> listJobs(org.springframework.data.domain.Pageable pageable) {
+        return jobRepo.findAllByOrderByCreatedAtDesc(pageable).map(jobMapper::toResponse);
     }
 }

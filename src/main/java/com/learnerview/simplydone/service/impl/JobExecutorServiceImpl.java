@@ -36,7 +36,7 @@ public class JobExecutorServiceImpl implements JobExecutorService {
     @CircuitBreaker(name = "externalHttpExecutor")
     @Bulkhead(name = "externalHttpExecutor", type = Bulkhead.Type.SEMAPHORE)
     public void execute(JobEntity job) {
-        sseEmitterService.broadcast("JOB_STARTED", Map.of(
+        sseEmitterService.broadcast(job.getProducer(), "JOB_STARTED", Map.of(
                 "id", job.getId(), "jobType", job.getJobType(), "status", "RUNNING",
                 "priority", job.getPriority().name()
         ));
@@ -74,7 +74,7 @@ public class JobExecutorServiceImpl implements JobExecutorService {
                 jobRepo.save(job);
 
                 retryService.logSuccess(job, response.getBody(), durationMs);
-                sseEmitterService.broadcast("JOB_COMPLETED", Map.of(
+                sseEmitterService.broadcast(job.getProducer(), "JOB_COMPLETED", Map.of(
                         "id", job.getId(), "jobType", job.getJobType(), "status", "SUCCESS",
                         "result", response.getBody() != null ? response.getBody() : "",
                         "durationMs", durationMs

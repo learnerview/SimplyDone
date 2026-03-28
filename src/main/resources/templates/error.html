@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{fragments/head :: head}" th:with="title='Error — SimplyDone'" />
+<body>
+    <th:block th:replace="~{fragments/sidebar}" />
+    <div class="main">
+        <header class="header-strip">
+            <h1 class="page-title">Something Went Wrong</h1>
+            <p style="color:var(--danger); font-size:1.1rem">An unexpected error occurred. Please try again or contact support.</p>
+        </header>
+        <div class="viewport">
+            <section class="section">
+                <div style="color:var(--text-muted); font-size:1rem;">
+                    <p>If you believe this is a bug, please report it to your administrator.</p>
+                </div>
+            </section>
+        </div>
+    </div>
+    <div id="toast-container" class="toast-container"></div>
+</body>
+</html>

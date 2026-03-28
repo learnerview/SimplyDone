@@ -12,6 +12,8 @@ public interface AdminService {
 
     QueueStatsResponse getStats();
 
+    QueueStatsResponse getStats(String producer);
+
     Page<JobResponse> listJobs(Pageable pageable);
 
     Page<JobResponse> listJobsByStatus(JobStatus status, Pageable pageable);
@@ -23,4 +25,12 @@ public interface AdminService {
     void retryDlqJob(String jobId);
 
     void clearQueues();
+
+    /* ── API Key Management ────────────────────────────────── */
+
+    List<com.learnerview.simplydone.dto.ApiKeyResponse> listKeys();
+
+    com.learnerview.simplydone.dto.ApiKeyResponse createKey(com.learnerview.simplydone.dto.ApiKeyRequest request);
+
+    void revokeKey(String keyId);
 }

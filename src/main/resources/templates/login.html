@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{fragments/head :: head}" th:with="title='Login — SimplyDone'" />
+<style>
+    .login-box {
+        max-width: 400px;
+        margin: 100px auto;
+        padding: 2.5rem 2rem;
+        background: var(--bg-alt);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        text-align: center;
+    }
+    .login-box h1 { margin-bottom: 2rem; }
+    .login-box input { width: 100%; padding: 0.75rem 1rem; margin-bottom: 1.5rem; border-radius: var(--radius); background: transparent; color: #fff; border: 1px solid var(--border-strong); }
+    .login-box button { width: 100%; padding: 0.75rem 1rem; font-weight: 600; cursor: pointer; border-radius: var(--radius); background: var(--accent); color: #fff; border: none; }
+    .login-box button:hover { background: #2563eb; }
+    .hint { font-size: 0.8rem; color: var(--text-muted); margin-top: 1rem; }
+</style>
+<body>
+    <div class="login-box">
+        <h1>SimplyDone</h1>
+        <p>Please enter your API Key to continue</p>
+        <input type="password" id="apiKeyInput" placeholder="sd_sk_test_..." autofocus>
+        <button id="loginBtn" class="btn btn-primary" onclick="performLogin()">Sign In</button>
+        <p class="hint">Your API Key is your identity. It determines which jobs and statistics you can access.</p>
+    </div>
+    <div id="toast-container" class="toast-container"></div>
+    <script th:src="@{/js/app.js}"></script>
+</body>
+</html>

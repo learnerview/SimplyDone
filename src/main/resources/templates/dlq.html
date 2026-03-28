@@ -4,39 +4,44 @@
 <body>
     <th:block th:replace="~{fragments/sidebar}" th:with="active='dlq'" />
     <div class="main">
-        <h1 class="page-title">Dead Letter Queue</h1>
-
-        <div class="card">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Type</th>
-                        <th>Priority</th>
-                        <th>Retries Used</th>
-                        <th>Result</th>
-                        <th>Failed At</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr th:each="job : ${dlqJobs}">
-                        <td><span class="copy-id" th:onclick="'copyId(\'' + ${job.id} + '\')'" th:title="${job.id}">
-                            <code th:text="${#strings.abbreviate(job.id, 11)}">abc...</code></span></td>
-                        <td th:text="${job.jobType}">echo</td>
-                        <td th:text="${job.priority}">NORMAL</td>
-                        <td th:text="${job.attemptCount} + '/' + ${job.maxAttempts}">3/3</td>
-                        <td><code th:text="${#strings.abbreviate(job.result ?: '—', 50)}">error msg</code></td>
-                        <td th:text="${job.completedAt}">—</td>
-                        <td><button class="btn btn-primary btn-sm" th:onclick="'retryDlqJob(\'' + ${job.id} + '\')'">Retry</button></td>
-                    </tr>
-                    <tr th:if="${#lists.isEmpty(dlqJobs)}">
-                        <td colspan="7" class="empty">No dead-lettered jobs</td>
-                    </tr>
-                </tbody>
-            </table>
+        <header class="header-strip">
+            <h1 class="page-title">Dead Letter Queue</h1>
+    <div class="main">
+        <header class="header-strip">
+            <h1 class="page-title">Dead Letter Queue</h1>
+            <p style="color:var(--text-muted); font-size:0.9rem">System repository for terminal failures requiring manual intervention.</p>
+        </header>
+        <div class="viewport">
+            <section class="section">
+                <div class="section-header">
+                    <h3 class="section-title">Failed Transaction Inventory</h3>
+                    <div class="live-toggle" onclick="toggleLive()">
+                        <span class="dot dot-xs dot-green"></span>
+                        <span id="sse-label" style="font-size:0.75rem">Live Sync Mode</span>
+                    </div>
+                </div>
+                <div class="data-box">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Job ID</th>
+                                <th>Category</th>
+                                <th>Status</th>
+                                <th>Merchant ID</th>
+                                <th>Failed At</th>
+                                <th>Error Trace</th>
+                                <th>Governance</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dlq-tbody">
+                            <tr><td colspan="7" class="empty">Scanning for failed jobs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
-        <div id="result-box" class="result-box"></div>
+            </section>
+        </div>
     </div>
     <div id="toast-container" class="toast-container"></div>
     <script th:src="@{/js/app.js}"></script>

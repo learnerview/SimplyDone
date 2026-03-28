@@ -2,13 +2,16 @@
     <h2>SimplyDone</h2>
     <a th:classappend="${#strings.equals(active, 'dashboard')} ? 'active'" th:href="@{/}">Dashboard</a>
     <a th:classappend="${#strings.equals(active, 'jobs')} ? 'active'" th:href="@{/jobs}">Jobs</a>
-    <a th:classappend="${#strings.equals(active, 'admin')} ? 'active'" th:href="@{/admin}">Admin</a>
-    <a th:classappend="${#strings.equals(active, 'dlq')} ? 'active'" th:href="@{/dlq}">Dead Letter Queue</a>
+    <a th:classappend="${#strings.equals(active, 'admin')} ? 'active'" th:href="@{/admin}" class="admin-only">Admin</a>
+    <a th:classappend="${#strings.equals(active, 'dlq')} ? 'active'" th:href="@{/dlq}" class="admin-only">Dead Letter Queue</a>
+
+    <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
+        <a href="#" onclick="logout(); return false;">Logout</a>
+    </div>
 </nav>
 <div class="sidebar-footer">
     <div class="status-row">
         <span class="dot dot-xs dot-yellow" id="sse-dot"></span>
         <span id="sse-label">Connecting…</span>
     </div>
-    <div id="ping-label" style="color: var(--text-muted);">Keep-alive: —</div>
 </div>

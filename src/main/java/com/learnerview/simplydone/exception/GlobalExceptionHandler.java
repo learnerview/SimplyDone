@@ -2,6 +2,7 @@ package com.learnerview.simplydone.exception;
 
 import com.learnerview.simplydone.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -40,6 +41,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadArg(IllegalArgumentException ex) {
         return respond(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConflict(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        return respond(HttpStatus.CONFLICT, "A record with this identifier already exists.");
     }
 
     @ExceptionHandler(Exception.class)

@@ -4,6 +4,7 @@ import com.learnerview.simplydone.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,8 +25,8 @@ public class SseController {
     private final SseEmitterService sseEmitterService;
 
     @GetMapping(value = "/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribe() {
+    public SseEmitter subscribe(@AuthenticationPrincipal String producer) {
         String clientId = UUID.randomUUID().toString();
-        return sseEmitterService.subscribe(clientId);
+        return sseEmitterService.subscribe(clientId, producer);
     }
 }

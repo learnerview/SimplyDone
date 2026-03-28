@@ -57,7 +57,7 @@ public class RetryServiceImpl implements RetryService {
 
             log.info("Retrying job {} (attempt {}/{}) in {}ms", job.getId(), attempt + 1, maxAttempts, delayMs);
 
-            sseEmitterService.broadcast("JOB_RETRY", Map.of(
+            sseEmitterService.broadcast(job.getProducer(), "JOB_RETRY", Map.of(
                     "id", job.getId(), "jobType", job.getJobType(), "status", "RETRY_SCHEDULED",
                 "attempt", attempt + 1, "maxAttempts", maxAttempts, "retryInMs", delayMs
             ));
@@ -72,7 +72,7 @@ public class RetryServiceImpl implements RetryService {
 
             log.warn("Job {} moved to DLQ after {} attempts", job.getId(), attempt);
 
-            sseEmitterService.broadcast("JOB_FAILED", Map.of(
+            sseEmitterService.broadcast(job.getProducer(), "JOB_FAILED", Map.of(
                     "id", job.getId(), "jobType", job.getJobType(), "status", "DLQ",
                     "result", "Max retries exceeded: " + (errorMessage != null ? errorMessage : ""),
                     "attempts", attempt

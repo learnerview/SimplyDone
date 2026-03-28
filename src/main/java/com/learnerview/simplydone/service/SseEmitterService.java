@@ -7,9 +7,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * Events: JOB_CREATED, JOB_STARTED, JOB_COMPLETED, JOB_FAILED, STATS_UPDATE
  */
 public interface SseEmitterService {
-    /** Register a new browser client and return its SseEmitter. */
-    SseEmitter subscribe(String clientId);
+    /** Register a new tenant client and return its SseEmitter. */
+    SseEmitter subscribe(String clientId, String producer);
 
-    /** Broadcast an event to ALL currently connected clients. */
-    void broadcast(String eventType, Object data);
+    /** Broadcast an event to ALL currently connected clients of a specific tenant. */
+    void broadcast(String producer, String eventType, Object data);
 }

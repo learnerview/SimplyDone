@@ -1,114 +1,85 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<th:block th:replace="~{fragments/head :: head}" th:with="title='Jobs — SimplyDone'" />
+<th:block th:replace="~{fragments/head :: head}" th:with="title='Submit Job — SimplyDone'" />
 <body>
     <th:block th:replace="~{fragments/sidebar}" th:with="active='jobs'" />
     <div class="main">
-        <h1 class="page-title">Jobs</h1>
-
-        <div class="card">
-            <h3>Submit Job</h3>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="jobType">Job Type</label>
-                    <select id="jobType" onchange="updatePayloadTemplate(this.value)">
-                        <option th:each="h : ${handlers}" th:value="${h.jobType}" th:text="${h.jobType}">echo</option>
-                    </select>
+        <header class="header-strip">
+            <h1 class="page-title">Submit Task</h1>
+            <p style="color:var(--text-muted); font-size:0.9rem">Provision new execution workloads for the worker cluster.</p>
+        </header>
+        <div class="viewport">
+            <section class="section">
+                <div class="section-header">
+                    <h3 class="section-title">Execution Configuration</h3>
                 </div>
-                <div class="form-group">
-                    <label for="priority">Priority</label>
-                    <select id="priority">
-                        <option value="HIGH">HIGH</option>
-                        <option value="NORMAL" selected>NORMAL</option>
-                        <option value="LOW">LOW</option>
-                    </select>
+                <form class="form-grid" onsubmit="submitJob(); return false;">
+                    <div class="form-group">
+                        <label>Target Handler (Job Type)</label>
+                        <select id="jobType">
+                            <option value="external">External HTTP Request</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Scheduling Priority</label>
+                        <select id="priority">
+                            <option value="NORMAL">Normal Efficiency</option>
+                            <option value="HIGH">High Priority</option>
+                            <option value="LOW">Economy / Low</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Webhook / Target Endpoint (URL)</label>
+                        <input type="text" id="executionEndpoint" placeholder="https://api.yourdomain.com/v1/jobs" required>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Input Payload (JSON)</label>
+                        <textarea id="payload" rows="4" placeholder='{"key": "value"}'>{}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Max Attempts</label>
+                        <input type="number" id="maxAttempts" min="1" value="3">
+                    </div>
+                    <div class="form-group">
+                        <label>Timeout (seconds)</label>
+                        <input type="number" id="timeoutSeconds" min="1" value="30">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Callback URL (optional)</label>
+                        <input type="text" id="callbackUrl" placeholder="https://yourdomain.com/callback">
+                    </div>
+                    <div style="grid-column: span 2; display:flex; justify-content:flex-end;">
+                        <button class="btn btn-primary" type="submit">Schedule Task</button>
+                    </div>
+                </form>
+            </section>
+            <section class="section">
+                <div class="section-header">
+                    <h3 class="section-title">Submission History</h3>
+                    <div class="live-toggle" onclick="toggleLive()">
+                        <span class="dot dot-xs dot-green"></span>
+                        <span id="sse-label" style="font-size:0.75rem">Live Sync</span>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="producer">Producer</label>
-                    <input type="text" id="producer" placeholder="order-service" value="order-service">
+                <div class="data-box">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Job ID</th>
+                                <th>Job Type</th>
+                                <th>Execution Status</th>
+                                <th>Priority</th>
+                                <th>Attempts</th>
+                                <th>Created</th>
+                                <th>Result Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobs-tbody">
+                            <tr><td colspan="7" class="empty">Scanning for previous submissions...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="executionEndpoint">Execution Endpoint</label>
-                    <input type="url" id="executionEndpoint" placeholder="https://api.example.com/process" value="https://httpbin.org/post">
-                </div>
-                <div class="form-group">
-                    <label for="timeoutSeconds">Timeout Seconds</label>
-                    <input type="number" id="timeoutSeconds" min="1" max="120" value="10">
-                </div>
-                <div class="form-group">
-                    <label for="callbackUrl">Callback URL (Optional)</label>
-                    <input type="url" id="callbackUrl" placeholder="https://myapp.com/result">
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="idempotencyKey">Idempotency Key (Optional)</label>
-                <input type="text" id="idempotencyKey" placeholder="order-123">
-            </div>
-            <div class="form-group">
-                <label for="payload">Payload (JSON)</label>
-                <textarea id="payload">{"orderId": "123", "event": "order.confirmed"}</textarea>
-                <small id="payload-hint" style="color: var(--text-muted); display: block; margin-top: .4rem;"></small>
-            </div>
-            <button class="btn btn-primary" onclick="submitJob()">Submit Job</button>
-        </div>
-
-        <div class="card" style="margin-top: 1.5rem;">
-            <div class="section-header">
-                <h3>Job List</h3>
-                <button class="live-toggle" onclick="toggleLive()">
-                    <span class="dot dot-xs dot-green"></span>
-                    <span>Live</span>
-                </button>
-            </div>
-            <div class="toolbar">
-                <select id="filter-status" onchange="applyFilters()">
-                    <option value="">All Statuses</option>
-                    <option value="queued">QUEUED</option>
-                    <option value="running">RUNNING</option>
-                    <option value="success">SUCCESS</option>
-                    <option value="failed">FAILED</option>
-                    <option value="dlq">DLQ</option>
-                </select>
-                <select id="filter-priority" onchange="applyFilters()">
-                    <option value="">All Priorities</option>
-                    <option value="high">HIGH</option>
-                    <option value="normal">NORMAL</option>
-                    <option value="low">LOW</option>
-                </select>
-                <input type="text" id="filter-search" placeholder="Search type or ID…">
-                <div class="toolbar-actions">
-                    <button class="btn btn-success btn-sm" onclick="exportCsv()">Export CSV</button>
-                </div>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>Priority</th>
-                        <th>Retries</th>
-                        <th>Created</th>
-                        <th>Result</th>
-                    </tr>
-                </thead>
-                <tbody id="jobs-tbody">
-                    <tr th:each="job : ${recentJobs}">
-                        <td><code th:text="${#strings.abbreviate(job.id, 11)}">abc...</code></td>
-                        <td th:text="${job.jobType}">echo</td>
-                        <td><span class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(job.status)}" th:text="${job.status}">QUEUED</span></td>
-                        <td th:text="${job.priority}">NORMAL</td>
-                        <td th:text="${job.attemptCount == 0 ? '—' : job.attemptCount + ' / ' + job.maxAttempts}">—</td>
-                        <td th:text="${job.createdAt}">—</td>
-                        <td th:text="${job.result ?: '—'}">—</td>
-                    </tr>
-                    <tr th:if="${#lists.isEmpty(recentJobs)}">
-                        <td colspan="7" class="empty">No jobs yet</td>
-                    </tr>
-                </tbody>
-            </table>
+            </section>
         </div>
     </div>
     <div id="toast-container" class="toast-container"></div>

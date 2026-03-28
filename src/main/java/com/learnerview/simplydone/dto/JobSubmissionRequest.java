@@ -13,9 +13,6 @@ public class JobSubmissionRequest {
     @NotBlank(message = "jobType is required")
     private String jobType;
 
-    @NotBlank(message = "producer is required")
-    private String producer;
-
     @NotBlank(message = "idempotencyKey is required")
     private String idempotencyKey;
 

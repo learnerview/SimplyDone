@@ -1,112 +1,175 @@
-# SimplyDone: Enterprise Multi-Tenant Job Scheduling Platform 🚀
+# SimplyDone: Enterprise Multi-Tenant Job Scheduling Platform
 
-Welcome to **SimplyDone**! SimplyDone is a high-availability, distributed job-scheduling and execution engine. It provides a robust "Job-as-a-Service" (JaaS) platform that allows multiple independent teams or external users (tenants) to schedule background tasks with guaranteed isolation, observability, and fault tolerance.
+SimplyDone is a high-performance, distributed job scheduling and execution engine designed for multi-tenant SaaS environments. It provides a robust, production-ready backbone for managing background tasks, webhooks, and asynchronous workflows with strict data isolation, weighted priority queuing, and comprehensive fault tolerance.
 
----
+## Core Value Proposition
 
-## 👩‍💼 For Non-Technical Users: What is SimplyDone?
+SimplyDone solves the complexity of reliable task execution in distributed systems by providing:
 
-Imagine you run an online store and you need to send 10,000 emails, generate 500 PDF reports, and process 1,000 payments. Doing all of this at once would crash your website. 
-
-**SimplyDone is the solution.** It acts like an intelligent "to-do list manager" for your software systems. 
-1. **You tell SimplyDone what needs to be done** (e.g., "Send an email to John").
-2. **SimplyDone puts it in a queue**, categorized by priority (High, Normal, Low).
-3. **SimplyDone's workers execute the tasks** in the background, making sure your main website stays fast.
-4. If a task fails (e.g., the email server is down), **SimplyDone automatically retries** it later. If it fails too many times, it goes to the **Dead Letter Queue (DLQ)**, where an administrator can manually review and retry it.
-
-### How to use the SimplyDone Dashboard
-1. **Login**: Go to `http://localhost:8080/login`. Enter your API key (e.g., `sd_sk_test_user1`). Your API key is your secure password.
-2. **Dashboard**: View a high-level summary of your tasks (queued, running, succeeded, or failed).
-3. **Jobs**: Submit new tasks by specifying a target URL and the data you want to send. You can also view a real-time list of all your past tasks.
-4. *(Admins Only)* **Admin Console**: Manage API keys for your team, issue new keys, revoke old ones, and clear stuck queues.
-5. *(Admins Only)* **Dead Letter Queue**: View tasks that failed permanently and retry them with the click of a button.
+- **Zero-Orphan Guarantee**: A background Reaper service ensures that no job is ever lost, even if a worker node crashes mid-execution.
+- **Weighted Fairness**: Prevents low-priority background tasks from starving during high-load bursts of critical operations.
+- **Plug-and-Play Multi-Tenancy**: Built-in tenant isolation allows you to expose task scheduling directly to your end-users or internal teams with zero risk of data leakage.
+- **Cloud-Native Observability**: Real-time event streaming and cluster-wide metrics provide instant visibility into system throughput and health.
 
 ---
 
-## 🧑‍💻 For Developers: Quick Start Guide
+## Technical Architecture
 
-### 1. Requirements & Launch
-SimplyDone requires PostgreSQL (Database) and Redis (Queue Engine). You can spin up the entire stack using Docker:
+SimplyDone is designed for high availability and horizontal scalability. The architecture separates the ingestion (API) layer from the execution (Worker) layer, allowing each to be scaled independently based on workload.
 
-```bash
-docker-compose up -d
-mvn spring-boot:run
+```mermaid
+graph TD
+    subgraph Clients
+        P1[Producer A]
+        P2[Producer B]
+        SDK[Java SDK]
+    end
+
+    subgraph "SimplyDone API Node"
+        API[REST Controller]
+        Auth[Identity Engine/RBAC]
+        RL[Rate Limiter]
+    end
+
+    subgraph "Persistence & Queuing"
+        Redis[(Redis - Priority Queues)]
+        DB[(PostgreSQL - Job Store)]
+    end
+
+    subgraph "SimplyDone Worker Cluster"
+        W1[Worker 1]
+        W2[Worker 2]
+        Reap[Lease Reaper]
+    end
+
+    P1 & P2 & SDK --> API
+    API --> Auth --> RL
+    RL --> DB
+    RL --> Redis
+    W1 & W2 --> Redis
+    W1 & W2 --> DB
+    Reap --> DB
+    Reap --> Redis
 ```
 
-By default, the application runs on port `8080`.
+### Job Lifecycle
 
-### 2. Built-in Test Keys
-The database is automatically seeded with the following keys for testing:
-- **Global Admin**: `sd_sk_test_admin`
-- **Tenant 1**: `sd_sk_test_user1`
-- **Tenant 2**: `sd_sk_test_user2`
+SimplyDone manages the complete lifecycle of a task, from submission to terminal state:
 
-### 3. Using the Java SDK
-SimplyDone includes a minimal, built-in Java SDK (`SimplyDoneClient.java`) that allows you to easily submit jobs from any external Java application.
-
-```java
-import com.learnerview.simplydone.sdk.SimplyDoneClient;
-import java.util.Map;
-
-public class App {
-    public static void main(String[] args) throws Exception {
-        // Initialize the client with your API Key
-        SimplyDoneClient client = new SimplyDoneClient("http://localhost:8080", "sd_sk_test_user1");
-
-        // Submit a job
-        String result = client.submitJob(
-            "https://webhook.site/your-webhook-url", 
-            Map.of("message", "Hello SimplyDone!", "userId", 123)
-        );
-        
-        System.out.println("Job submitted successfully: " + result);
-    }
-}
+```mermaid
+stateDiagram-v2
+    [*] --> QUEUED: API Submission
+    QUEUED --> RUNNING: Worker Claim (Atomic)
+    RUNNING --> SUCCESS: Execution Complete
+    RUNNING --> RETRY_SCHEDULED: Transient Failure
+    RETRY_SCHEDULED --> QUEUED: Delay Expired
+    RUNNING --> DLQ: Max Retries Exceeded
+    RUNNING --> QUEUED: Reaper Recovery (Worker Crash)
+    SUCCESS --> [*]
+    DLQ --> [*]
 ```
 
 ---
 
-## 🏗️ Architecture & Core Features
+## Technical Implementation Deep Dives
 
-### 1. True Multi-Tenancy & Security
-- **Strict Data Isolation**: Every job is tied to a `producer` (Tenant ID). Regular tenants can never see or modify jobs belonging to other tenants.
-- **Stateless API Keys**: All authentication is handled via the `X-API-KEY` header.
-- **Role-Based Access Control (RBAC)**: Only keys with the `admin` flag set to `true` can access the Admin and DLQ features.
+### 1. Weighted Priority (Deficit Round-Robin)
+SimplyDone implements a **Deficit Round-Robin (DRR)** scheduler to manage multiple priority lanes (High, Normal, Low). 
 
-### 2. High-Performance Queuing
-- **Redis-Backed**: Uses Redis `ZSET` (Sorted Sets) for atomic, sub-millisecond priority queuing (High, Normal, Low).
-- **Worker/API Profiles**: You can scale SimplyDone by running instances in `worker` mode (only executes jobs) and `api` mode (only handles UI and REST requests).
+Unlike simple "high-first" schedulers which can cause total starvation of low-priority tasks, DRR uses a weighted deficit counter. If the weights are set to 70 (High), 20 (Normal), and 10 (Low), the system guarantees that over time, 70% of processing power goes to High-priority jobs, while Low-priority jobs are guaranteed at least 10% of throughput, even under maximum load.
 
-### 3. The "Un-Card" Sectional UI
-SimplyDone features a fully custom, enterprise-grade dark mode dashboard built with Vanilla HTML/CSS/JS. It utilizes a **Sectional Grid** layout (no floating cards), providing zero-overflow responsiveness and real-time Server-Sent Events (SSE) updates.
+### 2. Redis Atomic Claims (Compare-And-Swap)
+To support multi-worker clusters without duplicate execution, SimplyDone uses a Redis-based optimistic locking pattern:
+- **WATCH**: The worker watches the priority queue key in Redis.
+- **MULTI**: Starts a transaction.
+- **EXEC**: Atomically removes the job ID from the queue only if no other worker has modified the queue since the `WATCH` command.
+This ensures **exactly-once claiming** at the queue level before the worker updates the job status in the database.
+
+### 3. Identity Engine & Isolation
+Security is built into the core. Every request to SimplyDone requires an `X-API-KEY`.
+- The **Identity Engine** maps each key to a specific `producer` (Tenant ID).
+- **Data Isolation**: All database queries are scoped by the producer ID. A tenant can never view, modify, or cancel a job belonging to another tenant.
+- **RBAC**: Admin keys have elevated privileges to view cluster-wide metrics and manage the Dead Letter Queue (DLQ).
+
+### 4. Resilience & The Lease Reaper
+When a worker claims a job, it is granted a "lease" (default 30 seconds). If the worker crashes, the job remains in the `RUNNING` state in the database but is no longer in the queue.
+The **Lease Reaper** service periodically scans for jobs that have exceeded their lease timeout without completion or heartbeat. It automatically re-enqueues these "orphaned" jobs, ensuring that every task is ultimately executed.
+
+### 5. Sliding Window Rate Limiting
+SimplyDone uses a Redis-backed **Sliding Window** rate limiter. Unlike fixed-window counters, the sliding window prevents "bursting" at the edge of time windows (e.g., 200 requests at 11:59:59 and another 200 at 12:00:01). It maintains a sub-second log of requests in a Redis `ZSET`, providing smooth and fair rate limiting for all tenants.
 
 ---
 
-## 📚 API Specification
+## Developer Guide
 
-### Submit a Job
-- **POST** `/api/jobs`
-- **Headers**: `X-API-KEY: your_api_key`
+### Local Setup
+
+1. **Configure Infrastructure**:
+   SimplyDone requires Redis and PostgreSQL. The provided `docker-compose.yml` initializes these with production-optimized settings.
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **Run the Application**:
+   The application supports profiles for scaling.
+   - Run both API and Worker: `mvn spring-boot:run`
+   - Run API only: `mvn spring-boot:run -Dspring-boot.run.profiles=api`
+   - Run Worker only: `mvn spring-boot:run -Dspring-boot.run.profiles=worker`
+
+### API Specification
+
+#### Submit a Job
+`POST /api/jobs`
+
+**Headers**:
+- `X-API-KEY`: `<your_api_key>`
+- `Content-Type`: `application/json`
+
+**Body**:
 ```json
 {
-  "jobType": "external",
+  "jobType": "webhook",
+  "idempotencyKey": "order-12345",
   "priority": "HIGH",
-  "executionEndpoint": "https://api.example.com/webhook",
-  "payload": { "foo": "bar" }
+  "payload": {
+    "orderId": "ORD-99",
+    "customer": "John Doe"
+  },
+  "execution": {
+    "type": "HTTP",
+    "endpoint": "https://api.yourdomain.com/webhooks/process"
+  },
+  "maxAttempts": 5,
+  "timeoutSeconds": 60,
+  "callbackUrl": "https://api.yourdomain.com/callbacks/job-status"
 }
 ```
 
-### Admin REST Boundaries
-All `/api/admin/**` routes are strictly protected by Spring Security's `@PreAuthorize("hasRole('ADMIN')")`.
-- `GET /api/admin/stats` - Global cluster metrics.
-- `GET /api/admin/dlq` - List of all permanently failed jobs.
-- `GET /api/admin/keys` - List of all issued merchant API tokens.
-- `POST /api/admin/keys` - Issue a new rotating key for a tenant.
+### SDK Integration (Java)
+
+Include the minimal client in your project to interact with SimplyDone programmatically.
+
+```java
+// Initialize the client
+SimplyDoneClient client = new SimplyDoneClient("https://simplydone.yournetwork.local", "sd_sk_live_12345");
+
+// Define your payload
+Map<String, Object> data = Map.of("userId", 42, "action", "sync_profile");
+
+// Submit the job
+String jobId = client.submitJob("https://internal.service/sync", data);
+```
 
 ---
 
-## 🛡️ Resilience & Fault Tolerance
-1. **In-Flight Protection**: If a worker crashes while executing a job, a background Reaper service automatically re-queues the "orphaned" job after the lease timeout.
-2. **Exponential Backoff**: Failing jobs are retried with increasing delays (e.g., 5s, 10s, 20s) to prevent overwhelming downstream services.
-3. **Circuit Breakers**: External HTTP executions are wrapped in Resilience4j circuit breakers to prevent cascading failures.
-4. **Key Rotation UPSERT**: Creating a key for an existing tenant automatically revokes their old key and issues a new one without causing database constraint errors.
+## Operational Considerations
+
+### Scaling Strategy
+SimplyDone instances are stateless. You can scale the **API nodes** to handle more incoming requests and the **Worker nodes** to handle higher job throughput. The system relies on Redis and PostgreSQL as the source of truth, allowing you to add or remove nodes on the fly without downtime.
+
+### Dead Letter Queue (DLQ)
+Jobs that fail all retry attempts (including exponential backoff) are moved to the DLQ. Administrators can inspect DLQ jobs via the dashboard or API to diagnose issues and manually trigger retries once downstream systems are restored.
+
+## License
+
+Copyright 2024 SimplyDone. Licensed under the MIT License.

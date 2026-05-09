@@ -72,7 +72,7 @@ When SimplyDone executes a job, it computes an HMAC-SHA256 hash of the JSON payl
 
 ### Interactive API Docs
 
-Swagger UI is available at `/swagger-ui.html`. Use the `X-API-KEY` header to authenticate.
+Swagger UI is available at `/swagger-ui.html`. Use the `X-API-KEY` header to authenticate. In Swagger UI click "Authorize" and provide the header value like `sd_sk_yourkey`.
 
 ### Example
 
@@ -101,6 +101,74 @@ curl -X POST http://localhost:8080/api/jobs \
 - Actuator is restricted to `/actuator/health` and `/actuator/metrics`. Sensitive endpoints cannot be accidentally exposed.
 - If you lose your API key, visit `/recover`. Provide your registered email, verify the OTP, and a new key is issued. All previous keys for the account are revoked immediately.
 
+## Prerequisites
+
+- Java 17+ (or the JDK version declared in `pom.xml`).
+- Maven 3.6+ for building and running with `mvn`.
+- Docker Engine and Docker Compose (v2+) if using the included compose setup.
+
+## Database migrations and deployment notes
+
+- Migrations are applied with Flyway on application startup. Ensure the configured PostgreSQL database is reachable by the app before first run.
+- To run migrations manually (if desired) use the Maven Flyway plugin or start the app once with the database accessible so Flyway can apply migrations.
+
+## Environment variables
+
+The project includes an example file at `.env.example`. Critical variables to review before boot:
+
+- `ADMIN_INITIAL_SECRET` — used to bootstrap an admin key; store this securely (Secrets Manager, Vault, or K8s Secrets).
+- `MAIL_USERNAME` / `MAIL_PASSWORD` — SMTP credentials (for signup/recovery emails). Prefer a service account or provider-specific API key (SendGrid, SES) rather than a personal mailbox.
+
+
+## Running locally (quickstart)
+
+1. Create a `.env` file at the project root if you want to override defaults. Set `ADMIN_INITIAL_SECRET` to bootstrap the admin API key.
+2. If you want outbound email for signup and recovery, set `MAIL_USERNAME` and `MAIL_PASSWORD` to an appropriate SMTP credential or API key.
+3. Start PostgreSQL, Redis, and the app with Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+Note: older Docker CLI versions use the `docker-compose` command (hyphen). Use whichever matches your environment.
+
+4. Visit `http://localhost:8080` for the public landing page, `http://localhost:8080/signup` for self-service registration, or `http://localhost:8080/login` to authenticate.
+
+5. Run the application directly if you are not using Docker:
+
+```bash
+mvn spring-boot:run
+```
+
+Actuator exposes `/actuator/health` and `/actuator/metrics`.
+
+## Testing and developer tips
+
+- Run unit/integration tests with:
+
+```bash
+mvn test
+```
+
+- Use `scripts/demo-data.sh` to populate test tenants and API keys for local development.
+
+## Troubleshooting
+
+- "Port already in use": stop any process on `:8080` or change `server.port` via environment variable.
+- "Database migrations failing": ensure Postgres URL and credentials are correct and the Flyway schema history table is writable.
+- Missing `ADMIN_INITIAL_SECRET`: bootstrap will still work if you create an admin key manually, but the initial provisioning flow expects this value for unattended setups.
+
+## Links and useful files
+
+- Postman collection: `simplydone.postman_collection.json` (import to test endpoints).
+- Demo script: `scripts/demo-data.sh` — creates sample tenants and keys for local testing.
+- Dockerfile and `docker-compose.yml` — container images and composed services for quick local staging.
+
+## Changes in this update
+
+- Added prerequisites, migration notes, env guidance, Swagger auth hint, test/run commands, and troubleshooting tips.
+
+
 ## Reliability Model
 
 - Leases prevent duplicate execution across workers.
@@ -111,26 +179,7 @@ curl -X POST http://localhost:8080/api/jobs \
 - Orphan recovery re-queues jobs left in `RUNNING` after a crash.
 - DLQ handling keeps terminal failures visible for manual replay.
 - CircuitBreaker and Bulkhead (Resilience4j) protect against cascade failures during HTTP execution.
-
-## Running Locally
-
-1. Create a `.env` file at the project root if you want to override defaults. Set `ADMIN_INITIAL_SECRET` to bootstrap the admin API key.
-2. If you want outbound email for signup and recovery, set `MAIL_USERNAME` and `MAIL_PASSWORD` to a Gmail app password pair.
-3. Start PostgreSQL, Redis, and the app:
-
-   ```bash
-   docker compose up -d
-   ```
-
-4. Visit `http://localhost:8080` for the public landing page, `http://localhost:8080/signup` for self-service registration, or `http://localhost:8080/login` to authenticate.
-
-5. Run the application directly if you are not using Docker:
-
-   ```bash
-   mvn spring-boot:run
-   ```
-
-   Actuator exposes `/actuator/health` and `/actuator/metrics`.
+ 
 
 ## Repository Structure
 
@@ -144,3 +193,28 @@ simplydone/
 ├── .env.example
 └── README.md
 ```
+## Screenshots
+
+Landing page:
+
+![Landing page](images/image.png)
+
+OpenAPI/ Swagger API:
+
+![OpenAPI](images/image-1.png)
+
+Login Page:
+
+![Login Page](images/image-2.png)
+
+Dashboard:
+
+![Dashboard](images/image-4.png)
+
+Admin Console:
+
+![Admin Console](images/image-5.png)
+
+DLQ:
+
+![DLQ](images/image-6.png)

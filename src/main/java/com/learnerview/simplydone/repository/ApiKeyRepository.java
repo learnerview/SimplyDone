@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface ApiKeyRepository extends JpaRepository<ApiKeyEntity, String> {
     Optional<ApiKeyEntity> findByApiKeyAndActiveTrue(String apiKey);
+    Optional<ApiKeyEntity> findFirstByProducerAndActiveTrueOrderByCreatedAtDesc(String producer);
 }

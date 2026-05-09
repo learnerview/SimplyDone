@@ -30,7 +30,9 @@ h1, h2, h3, .page-title { font-family: 'Outfit', sans-serif; font-weight: 600; }
 .sidebar {
     position: fixed; top: 0; left: 0; bottom: 0;
     width: var(--sidebar-w);
-    background: var(--bg-alt);
+    background: rgba(17, 18, 24, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-right: 1px solid var(--border);
     padding: 1.5rem 1rem;
     z-index: 100;

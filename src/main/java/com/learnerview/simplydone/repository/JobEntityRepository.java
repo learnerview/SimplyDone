@@ -22,6 +22,7 @@ public interface JobEntityRepository extends JpaRepository<JobEntity, String> {
     Page<JobEntity> findByJobTypeOrderByCreatedAtDesc(String jobType, Pageable pageable);
     Page<JobEntity> findByProducerOrderByCreatedAtDesc(String producer, Pageable pageable);
     List<JobEntity> findByStatus(JobStatus status);
+    List<JobEntity> findByProducerAndStatus(String producer, JobStatus status);
     List<JobEntity> findTop100ByStatusAndVisibleAtBeforeOrderByVisibleAtAsc(JobStatus status, Instant before);
     List<JobEntity> findTop100ByStatusAndNextRunAtLessThanEqualOrderByNextRunAtAsc(JobStatus status, Instant now);
     long countByStatus(JobStatus status);

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimplyDone - Open Source Background Jobs</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- WHY: We rely on style.css to inject the global dark theme variables (--bg, --text, --accent) so the landing page matches the premium dashboard UI without duplicating CSS. -->
+    <style>
+        .hero {
+            text-align: center;
+            padding: 4rem 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--text); /* WHY: Using global text color instead of hardcoded #000 */
+        }
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-muted); /* WHY: Inherits the muted text color for consistency */
+            margin-bottom: 2rem;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        .feature-box {
+            padding: 1.5rem;
+            border: 1px solid var(--border); /* WHY: Use global border token */
+            background: rgba(255, 255, 255, 0.02); /* WHY: Match the glassmorphism aesthetic of the dashboard */
+            border-radius: var(--radius);
+        }
+        .cta-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            text-decoration: none;
+            border-radius: var(--radius);
+            font-weight: bold;
+        }
+        .btn-primary {
+            background-color: var(--accent); /* WHY: Inherits primary accent color */
+            color: white;
+        }
+        .btn-outline {
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>SimplyDone</h1>
+        <p>A lightweight, generic, open-source background job scheduling engine built for developers.</p>
+        
+        <div class="cta-buttons">
+            <a href="/login" class="btn btn-primary">Login / Get Started</a>
+            <a href="https://github.com/learnerview/SimplyDone" class="btn btn-outline" target="_blank">View on GitHub</a>
+            <a href="/swagger-ui.html" class="btn btn-outline">API Documentation</a>
+        </div>
+
+        <div class="features">
+            <div class="feature-box">
+                <h3>Open Source</h3>
+                <p>Completely free and open-source. Host it yourself and integrate seamlessly into your microservices.</p>
+            </div>
+            <div class="feature-box">
+                <h3>Webhook Driven</h3>
+                <p>SimplyDone triggers HTTP callbacks (webhooks) to your execution endpoints. We've even added HMAC security to verify requests.</p>
+            </div>
+            <div class="feature-box">
+                <h3>Reliable Queues</h3>
+                <p>Configurable retries, priority queues, and Dead Letter Queues (DLQ) guarantee your background tasks won't get lost.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

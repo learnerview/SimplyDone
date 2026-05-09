@@ -19,17 +19,19 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/signup", "/css/**", "/js/**", "/img/**", "/favicon.ico", "/api/jobs/types", "/actuator/**", "/api/ping").permitAll()
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/", "/jobs", "/admin", "/dlq", "/error").permitAll()
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/jobs/**", "/api/events").authenticated()
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/login", "/signup", "/css/**", "/js/**", "/img/**", "/favicon.ico",
+                                "/api/jobs/types", "/actuator/**", "/api/ping", "/v3/api-docs/**", "/swagger-ui/**",
+                                "/swagger-ui.html")
+                        .permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/", "/dashboard", "/jobs", "/admin", "/dlq", "/error").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/jobs/**", "/api/events").authenticated()
+                        .anyRequest().authenticated())
+                .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

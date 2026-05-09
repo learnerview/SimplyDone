@@ -4,6 +4,7 @@ const getApiKey = () => localStorage.getItem(AUTH_KEY);
 const setApiKey = (k) => k ? localStorage.setItem(AUTH_KEY, k) : localStorage.removeItem(AUTH_KEY);
 const logout = () => { setApiKey(null); window.location.href = '/login'; };
 
+// Global fetch wrapper: injects X-API-KEY, handles 401/403 auto-logout, parses RFC 7807 errors.
 const api = async (url, opts = {}) => {
     const key = getApiKey();
     const headers = {
@@ -14,7 +15,8 @@ const api = async (url, opts = {}) => {
     if (res.status === 401 || res.status === 403) { logout(); return null; }
     const data = await res.json().catch(() => ({ message: 'Invalid response from server' }));
     if (!res.ok) {
-        const msg = data.message || `Server error (${res.status})`;
+        // RFC 7807 returns `detail`; legacy ApiResponse returns `message`
+        const msg = data.detail || data.message || `Server error (${res.status})`;
         toast(msg, 'error');
         throw new Error(msg);
     }
@@ -46,12 +48,18 @@ function statusBadge(status) {
     return map[status] ?? 'badge-warn';
 }
 
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => toast('Copied to clipboard', 'info'));
+}
+
+// --- Data Loading ---
+
 async function loadStats() {
     if (!getApiKey()) return;
     try {
-        const path = window.location.pathname;
-        const isAdmin = (path === '/admin' || path === '/dlq');
-        const d = await api(isAdmin ? '/api/admin/stats' : '/api/jobs/health');
+        // Only use admin stats endpoint on /admin page; everything else uses the scoped /health endpoint
+        const isAdminPage = (window.location.pathname === '/admin');
+        const d = await api(isAdminPage ? '/api/admin/stats' : '/api/jobs/health');
         if (!d?.data) return;
         const s = d.data;
         const statMap = {
@@ -94,63 +102,12 @@ async function loadJobs() {
     } catch (e) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Error loading jobs</td></tr>'; }
 }
 
-async function submitJob() {
-    const jobType = document.getElementById('jobType')?.value;
-    const priority = document.getElementById('priority')?.value;
-    const executionEndpoint = document.getElementById('executionEndpoint')?.value;
-    const payloadStr = document.getElementById('payload')?.value ?? '{}';
-    const maxAttempts = document.getElementById('maxAttempts')?.value || '3';
-    const timeoutSeconds = document.getElementById('timeoutSeconds')?.value || '30';
-    const callbackUrl = document.getElementById('callbackUrl')?.value;
-    if (!executionEndpoint) { toast('Execution endpoint is required', 'error'); return; }
-    let payload;
-    try { payload = JSON.parse(payloadStr); }
-    catch { toast('Malformed JSON payload', 'error'); return; }
-    try {
-        const idempotencyKey = crypto.randomUUID ? crypto.randomUUID() : 'sd_uid_' + Math.random().toString(36).substring(2);
-        const reqBody = {
-            jobType,
-            idempotencyKey,
-            priority,
-            execution: { type: 'HTTP', endpoint: executionEndpoint },
-            payload,
-            maxAttempts: parseInt(maxAttempts),
-            timeoutSeconds: parseInt(timeoutSeconds)
-        };
-        if (callbackUrl) reqBody.callbackUrl = callbackUrl;
-        await api('/api/jobs', { method: 'POST', body: JSON.stringify(reqBody) });
-        toast('Task provisioned successfully', 'info');
-        await loadJobs();
-        await loadStats();
-    } catch (e) {
-        toast('Failed to schedule task: ' + (e?.message || 'Unknown error'), 'error');
-        console.error('Job scheduling error:', e);
-    }
-}
-
-async function retryDlqJob(id) {
-    try {
-        await api(`/api/admin/dlq/${id}/retry`, { method: 'POST' });
-        toast('Job rescued and re-queued', 'info');
-        await loadDlq();
-        await loadStats();
-    } catch (_) {}
-}
-
-async function clearQueues() {
-    if (!confirm('PERMANENT: Flush all cluster buffers?')) return;
-    try {
-        await api('/api/admin/queues', { method: 'DELETE' });
-        toast('All queues cleared', 'info');
-        await loadStats();
-    } catch (_) {}
-}
-
+// Uses /api/jobs/dlq (multi-tenant: admins see all, orgs see their own)
 async function loadDlq() {
     const tbody = document.getElementById('dlq-tbody');
     if (!tbody || !getApiKey()) return;
     try {
-        const d = await api('/api/admin/dlq');
+        const d = await api('/api/jobs/dlq');
         const jobs = d?.data ?? [];
         if (!jobs.length) {
             tbody.innerHTML = '<tr><td colspan="7" class="empty">Terminal failure queue is empty</td></tr>';
@@ -198,10 +155,8 @@ async function loadHandlers() {
     try {
         const d = await api('/api/jobs/types');
         const handlers = d?.data ?? [];
-
         const select = document.getElementById('jobType');
         if (select) select.innerHTML = handlers.map(h => `<option value="${h.jobType}">${h.jobType.toUpperCase()} — ${h.description}</option>`).join('');
-
         const tbody = document.getElementById('handlers-tbody');
         if (tbody) tbody.innerHTML = handlers.map(h => `
             <tr>
@@ -212,18 +167,20 @@ async function loadHandlers() {
     } catch (_) {}
 }
 
+// --- Actions ---
+
 async function submitJob() {
     const jobType = document.getElementById('jobType')?.value;
     const priority = document.getElementById('priority')?.value;
     const executionEndpoint = document.getElementById('executionEndpoint')?.value;
     const payloadStr = document.getElementById('payload')?.value ?? '{}';
-
+    const maxAttempts = document.getElementById('maxAttempts')?.value || '3';
+    const timeoutSeconds = document.getElementById('timeoutSeconds')?.value || '30';
+    const callbackUrl = document.getElementById('callbackUrl')?.value;
     if (!executionEndpoint) { toast('Execution endpoint is required', 'error'); return; }
-
     let payload;
     try { payload = JSON.parse(payloadStr); }
     catch { toast('Malformed JSON payload', 'error'); return; }
-
     try {
         const idempotencyKey = crypto.randomUUID ? crypto.randomUUID() : 'sd_uid_' + Math.random().toString(36).substring(2);
         const reqBody = {
@@ -231,18 +188,23 @@ async function submitJob() {
             idempotencyKey,
             priority,
             execution: { type: 'HTTP', endpoint: executionEndpoint },
-            payload
+            payload,
+            maxAttempts: parseInt(maxAttempts),
+            timeoutSeconds: parseInt(timeoutSeconds)
         };
+        if (callbackUrl) reqBody.callbackUrl = callbackUrl;
         await api('/api/jobs', { method: 'POST', body: JSON.stringify(reqBody) });
         toast('Task provisioned successfully', 'info');
-        loadJobs();
-        loadStats();
-    } catch (_) {}
+        await loadJobs();
+        await loadStats();
+    } catch (e) {
+        console.error('Job scheduling error:', e);
+    }
 }
 
 async function retryDlqJob(id) {
     try {
-        await api(`/api/admin/dlq/${id}/retry`, { method: 'POST' });
+        await api(`/api/jobs/dlq/${id}/retry`, { method: 'POST' });
         toast('Job rescued and re-queued', 'info');
         loadDlq();
         loadStats();
@@ -262,9 +224,7 @@ async function submitCreateKey() {
     const label    = document.getElementById('newKeyLabel')?.value?.trim();
     const producer = document.getElementById('newKeyProducer')?.value?.trim();
     const admin    = document.getElementById('newKeyIsAdmin')?.value === 'true';
-
     if (!label || !producer) { toast('Label and Producer ID are required', 'error'); return; }
-
     try {
         const d = await api('/api/admin/keys', {
             method: 'POST',
@@ -272,14 +232,10 @@ async function submitCreateKey() {
         });
         toast('Merchant token issued', 'info');
         document.getElementById('key-modal').style.display = 'none';
-
         document.getElementById('newKeyLabel').value = '';
         document.getElementById('newKeyProducer').value = '';
-
         await loadKeys();
-        if (d?.data?.apiKey) {
-            copyToClipboard(d.data.apiKey);
-        }
+        if (d?.data?.apiKey) copyToClipboard(d.data.apiKey);
     } catch (_) {}
 }
 
@@ -287,20 +243,15 @@ async function revokeKey(id) {
     if (!confirm('Deactivate this merchant token permanently?')) return;
     try {
         await api(`/api/admin/keys/${id}`, { method: 'DELETE' });
-
         const badge = document.getElementById(`key-status-${id}`);
-        if (badge) {
-            badge.textContent = 'REVOKED';
-            badge.className = 'badge badge-failed';
-        }
+        if (badge) { badge.textContent = 'REVOKED'; badge.className = 'badge badge-failed'; }
         const row = document.getElementById(`key-row-${id}`);
-        if (row) {
-            const lastCell = row.cells[row.cells.length - 1];
-            if (lastCell) lastCell.textContent = '—';
-        }
+        if (row) { const lastCell = row.cells[row.cells.length - 1]; if (lastCell) lastCell.textContent = '—'; }
         toast('Merchant token revoked', 'info');
     } catch (_) {}
 }
+
+// --- SSE (Server-Sent Events) for live updates ---
 
 let _sse = null;
 function connectSse() {
@@ -315,14 +266,15 @@ function connectSse() {
     ['JOB_CREATED','JOB_STARTED','JOB_COMPLETED','JOB_FAILED','JOB_RETRY'].forEach(evt => {
         _sse.addEventListener(evt, e => {
             const d = JSON.parse(e.data);
-            const short = (d.id ?? '').substring(0, 8);
-            toast(`${evt.replace('_',' ')}: ${short}`, evt === 'JOB_FAILED' ? 'error' : 'info');
+            const shortId = (d.id ?? '').substring(0, 8);
+            toast(`${evt.replace('_',' ')}: ${shortId}`, evt === 'JOB_FAILED' ? 'error' : 'info');
             loadStats();
             loadJobs();
             if (window.location.pathname === '/dlq') loadDlq();
         });
     });
 
+    // Auto-reconnect after 6 seconds on connection drop
     _sse.onerror = () => {
         _sse.close(); _sse = null;
         const el = document.getElementById('sse-label');
@@ -331,6 +283,7 @@ function connectSse() {
     };
 }
 
+// Probes /api/admin/stats to determine if user is admin; if so, reveals admin-only UI elements
 async function syncSecurity() {
     if (!getApiKey()) return;
     try {
@@ -344,12 +297,11 @@ async function syncSecurity() {
 async function performLogin() {
     const key = document.getElementById('apiKeyInput')?.value?.trim();
     if (!key) { toast('Please enter your API Key', 'error'); return; }
-
     try {
         const res = await fetch('/api/jobs/health', { headers: { 'X-API-KEY': key } });
         if (res.ok) {
             setApiKey(key);
-            window.location.href = '/';
+            window.location.href = '/dashboard';
         } else {
             toast('Invalid or deactivated credentials', 'error');
         }
@@ -358,18 +310,13 @@ async function performLogin() {
     }
 }
 
-function escHtml(str) {
-    if (str == null) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function statusBadge(status) {
-    const map = { SUCCESS: 'badge-success', FAILED: 'badge-failed', DLQ: 'badge-failed', RUNNING: 'badge-warn', QUEUED: 'badge-warn' };
-    return map[status] ?? 'badge-warn';
-}
+// --- Bootstrap ---
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (window.location.pathname === '/login') return;
+    const path = window.location.pathname;
+
+    // Public pages that don't require authentication
+    if (path === '/login' || path === '/' || path === '/signup') return;
 
     if (!getApiKey()) { logout(); return; }
 
@@ -377,14 +324,14 @@ document.addEventListener('DOMContentLoaded', () => {
     loadHandlers();
     loadStats();
     loadJobs();
-    if (window.location.pathname === '/dlq') loadDlq();
+    if (path === '/dlq') loadDlq();
     connectSse();
 
     setInterval(loadStats, 10000);
     setInterval(loadJobs, 15000);
-    if (window.location.pathname === '/dlq') setInterval(loadDlq, 10000);
+    if (path === '/dlq') setInterval(loadDlq, 10000);
 
-    if (window.location.pathname === '/admin') {
+    if (path === '/admin') {
         window.switchTab = function(tab, event) {
             document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));

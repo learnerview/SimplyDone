@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class ViewController {
 
     @GetMapping("/")
+    public String landing() { return "landing"; }
+
+    @GetMapping("/dashboard")
     public String dashboard() { return "index"; }
 
     @GetMapping("/jobs")

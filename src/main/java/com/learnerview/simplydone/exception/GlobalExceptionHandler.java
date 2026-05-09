@@ -1,62 +1,70 @@
 package com.learnerview.simplydone.exception;
 
-import com.learnerview.simplydone.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import java.net.URI;
 
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(JobNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleNotFound(JobNotFoundException ex) {
-        return respond(HttpStatus.NOT_FOUND, ex.getMessage());
+    public ProblemDetail handleNotFound(JobNotFoundException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problemDetail.setTitle("Job Not Found");
+        return problemDetail;
     }
 
     @ExceptionHandler(RateLimitExceededException.class)
-    public ResponseEntity<ApiResponse<Void>> handleRateLimit(RateLimitExceededException ex) {
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
-                .body(ApiResponse.<Void>builder().success(false).message(ex.getMessage()).build());
+    public ProblemDetail handleRateLimit(RateLimitExceededException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
+        problemDetail.setTitle("Rate Limit Exceeded");
+        problemDetail.setProperty("retry_after_seconds", ex.getRetryAfterSeconds());
+        return problemDetail;
     }
 
     @ExceptionHandler(QueueFullException.class)
-    public ResponseEntity<ApiResponse<Void>> handleQueueFull(QueueFullException ex) {
-        return respond(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
+    public ProblemDetail handleQueueFull(QueueFullException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
+        problemDetail.setTitle("Queue Full");
+        return problemDetail;
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException ex) {
+    public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
         String msg = ex.getBindingResult().getFieldErrors().stream()
                 .map(e -> e.getField() + ": " + e.getDefaultMessage())
                 .reduce((a, b) -> a + "; " + b).orElse("Validation failed");
-        return respond(HttpStatus.BAD_REQUEST, msg);
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg);
+        problemDetail.setTitle("Validation Error");
+        return problemDetail;
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBadArg(IllegalArgumentException ex) {
-        return respond(HttpStatus.BAD_REQUEST, ex.getMessage());
+    public ProblemDetail handleBadArg(IllegalArgumentException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problemDetail.setTitle("Invalid Argument");
+        return problemDetail;
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleConflict(DataIntegrityViolationException ex) {
+    public ProblemDetail handleConflict(DataIntegrityViolationException ex) {
         log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
-        return respond(HttpStatus.CONFLICT, "A record with this identifier already exists.");
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "A record with this identifier already exists.");
+        problemDetail.setTitle("Data Conflict");
+        return problemDetail;
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleGeneric(Exception ex) {
+    public ProblemDetail handleGeneric(Exception ex) {
         log.error("Unhandled exception", ex);
-        return respond(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
-    }
-
-    private ResponseEntity<ApiResponse<Void>> respond(HttpStatus status, String message) {
-        return ResponseEntity.status(status)
-                .body(ApiResponse.<Void>builder().success(false).message(message).build());
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
+        problemDetail.setTitle("Internal Server Error");
+        return problemDetail;
     }
 }

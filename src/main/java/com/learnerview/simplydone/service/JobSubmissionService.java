@@ -17,4 +17,8 @@ public interface JobSubmissionService {
     org.springframework.data.domain.Page<JobResponse> listJobs(String producer, org.springframework.data.domain.Pageable pageable);
 
     org.springframework.data.domain.Page<JobResponse> listJobs(org.springframework.data.domain.Pageable pageable);
+
+    java.util.List<JobResponse> getDlqJobs(String producer);
+
+    void retryDlqJob(String producer, String jobId);
 }

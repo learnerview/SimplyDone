@@ -17,6 +17,10 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Multi-tenant job API. Admin users see all data; standard users are scoped to their producer ID.
+ * DLQ endpoints (/dlq, /dlq/{id}/retry) are accessible to both roles with scoped visibility.
+ */
 @RestController
 @RequestMapping("/api/jobs")
 @Profile("api")
@@ -26,6 +30,7 @@ public class JobController {
     private final JobSubmissionService submissionService;
     private final AdminService adminService;
 
+    /** Checks if the authenticated user holds ROLE_ADMIN to determine data scope. */
     private boolean isAdmin(Authentication auth) {
         return auth != null && auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
@@ -71,6 +76,31 @@ public class JobController {
                 : submissionService.listJobs(producer, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.<Page<JobResponse>>builder()
                 .success(true).data(jobs).build());
+    }
+
+    @GetMapping("/dlq")
+    public ResponseEntity<ApiResponse<List<JobResponse>>> getDlqJobs(
+            Authentication auth,
+            @AuthenticationPrincipal String producer) {
+        List<JobResponse> resp = isAdmin(auth)
+                ? adminService.getDlqJobs()
+                : submissionService.getDlqJobs(producer);
+        return ResponseEntity.ok(ApiResponse.<List<JobResponse>>builder()
+                .success(true).data(resp).build());
+    }
+
+    @PostMapping("/dlq/{id}/retry")
+    public ResponseEntity<ApiResponse<Void>> retryDlqJob(
+            Authentication auth,
+            @AuthenticationPrincipal String producer,
+            @PathVariable String id) {
+        if (isAdmin(auth)) {
+            adminService.retryDlqJob(id);
+        } else {
+            submissionService.retryDlqJob(producer, id);
+        }
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .success(true).message("Job re-queued from DLQ").build());
     }
 
     @GetMapping("/types")

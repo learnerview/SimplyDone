@@ -149,4 +149,28 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
     public org.springframework.data.domain.Page<JobResponse> listJobs(org.springframework.data.domain.Pageable pageable) {
         return jobRepo.findAllByOrderByCreatedAtDesc(pageable).map(jobMapper::toResponse);
     }
+
+    @Override
+    public java.util.List<JobResponse> getDlqJobs(String producer) {
+        return jobRepo.findByProducerAndStatus(producer, JobStatus.DLQ).stream()
+                .map(jobMapper::toResponse).collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    public void retryDlqJob(String producer, String jobId) {
+        JobEntity job = jobRepo.findByProducerAndId(producer, jobId)
+                .orElseThrow(() -> new JobNotFoundException(jobId));
+        if (job.getStatus() != JobStatus.DLQ) {
+            throw new IllegalArgumentException("Job is not in DLQ: " + job.getStatus());
+        }
+        job.setStatus(JobStatus.QUEUED);
+        job.setAttemptCount(0);
+        job.setNextRunAt(Instant.now());
+        job.setCompletedAt(null);
+        job.setResult(null);
+        jobRepo.save(job);
+        queueRepo.enqueue(jobId, job.getPriority(), Instant.now().toEpochMilli());
+        sseEmitterService.broadcast(producer, "JOB_UPDATE",
+                Map.of("id", jobId, "status", "QUEUED", "result", "Retried from DLQ"));
+    }
 }

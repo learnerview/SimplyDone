@@ -10,6 +10,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import org.springframework.scheduling.annotation.Async;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +29,7 @@ public class EmailServiceImpl implements EmailService {
     private String appUrl;
 
     @Override
+    @Async
     public void sendOtpEmail(String email, String otp, String organizationName) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -68,13 +70,13 @@ public class EmailServiceImpl implements EmailService {
             helper.setText(htmlContent, true);
             mailSender.send(message);
             log.info("OTP email sent to: {}", email);
-        } catch (MessagingException | java.io.UnsupportedEncodingException e) {
+        } catch (Exception e) {
             log.error("Failed to send OTP email to {}: {}", email, e.getMessage(), e);
-            throw new RuntimeException("Failed to send OTP email", e);
         }
     }
 
     @Override
+    @Async
     public void sendWelcomeEmail(String email, String organizationName, String apiKey, String producerId) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -140,9 +142,8 @@ curl -X POST %s/api/jobs \\<br/>
             helper.setText(htmlContent, true);
             mailSender.send(message);
             log.info("Welcome email sent to: {}", email);
-        } catch (MessagingException | java.io.UnsupportedEncodingException e) {
+        } catch (Exception e) {
             log.error("Failed to send welcome email to {}: {}", email, e.getMessage(), e);
-            throw new RuntimeException("Failed to send welcome email", e);
         }
     }
 }

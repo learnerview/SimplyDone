@@ -21,6 +21,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.UUID;
 
@@ -43,6 +45,11 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
 
         if (!"HTTP".equalsIgnoreCase(req.getExecution().getType())) {
             throw new IllegalArgumentException("Unsupported execution.type: " + req.getExecution().getType());
+        }
+
+        validateHttpUrl(req.getExecution().getEndpoint(), "execution.endpoint");
+        if (req.getCallbackUrl() != null && !req.getCallbackUrl().isBlank()) {
+            validateHttpUrl(req.getCallbackUrl(), "callbackUrl");
         }
 
         long totalDepth = queueRepo.queueSize(JobPriority.HIGH)
@@ -125,7 +132,7 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
                 .orElseThrow(() -> new JobNotFoundException(jobId));
         if (job.getStatus() == JobStatus.QUEUED) {
             queueRepo.remove(jobId, job.getPriority());
-            job.setStatus(JobStatus.FAILED);
+            job.setStatus(JobStatus.CANCELLED);
             job.setVisibleAt(null);
             job.setLeaseOwner(null);
             job.setLeaseToken(null);
@@ -133,7 +140,7 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
             job.setCompletedAt(Instant.now());
             jobRepo.save(job);
             sseEmitterService.broadcast(producer, "JOB_UPDATE", Map.of(
-                    "id", jobId, "status", "FAILED", "result", "Cancelled by user"
+                    "id", jobId, "status", "CANCELLED", "result", "Cancelled by user"
             ));
         } else {
             throw new IllegalArgumentException("Can only cancel QUEUED jobs, current: " + job.getStatus());
@@ -172,5 +179,20 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
         queueRepo.enqueue(jobId, job.getPriority(), Instant.now().toEpochMilli());
         sseEmitterService.broadcast(producer, "JOB_UPDATE",
                 Map.of("id", jobId, "status", "QUEUED", "result", "Retried from DLQ"));
+    }
+
+    private void validateHttpUrl(String value, String fieldName) {
+        try {
+            URI uri = new URI(value);
+            String scheme = uri.getScheme();
+            if (scheme == null || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))) {
+                throw new IllegalArgumentException(fieldName + " must use http or https");
+            }
+            if (uri.getHost() == null || uri.getHost().isBlank()) {
+                throw new IllegalArgumentException(fieldName + " must be a valid absolute URL");
+            }
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException(fieldName + " must be a valid absolute URL");
+        }
     }
 }

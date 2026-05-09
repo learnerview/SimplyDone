@@ -6,5 +6,6 @@ public enum JobStatus {
     RETRY_SCHEDULED,
     SUCCESS,
     FAILED,
+    CANCELLED,
     DLQ
 }

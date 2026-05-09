@@ -54,6 +54,8 @@ public class RegistrationServiceImpl implements RegistrationService {
             throw new IllegalArgumentException("Email already registered. Please login with your API key.");
         }
 
+        emailVerificationRepo.deleteByEmailAndVerifiedFalseAndOrganizationNameNot(email, "__RECOVERY__");
+
         String otp = otpService.generateOtp();
         String otpHash = hashOtp(otp); // store hash, never plaintext
         Instant now = Instant.now();
@@ -72,13 +74,8 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         emailVerificationRepo.save(verification);
 
-        try {
-            emailService.sendOtpEmail(email, otp, organizationName); // plaintext only in email
-            log.info("OTP requested for email: {}", email);
-        } catch (Exception e) {
-            log.error("Failed to send OTP email to {}: {}", email, e.getMessage());
-            throw new RuntimeException("Failed to send OTP email. Please try again later.", e);
-        }
+        emailService.sendOtpEmail(email, otp, organizationName); // plaintext only in email
+        log.info("OTP requested for email: {}", email);
     }
 
     @Override
@@ -90,7 +87,8 @@ public class RegistrationServiceImpl implements RegistrationService {
         }
 
         var verification = emailVerificationRepo
-                .findByEmailAndVerifiedFalseAndExpiresAtAfter(email, Instant.now())
+            .findFirstByEmailAndVerifiedFalseAndExpiresAtAfterAndOrganizationNameNotOrderByCreatedAtDesc(
+                email, Instant.now(), "__RECOVERY__")
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No pending verification found. Please request a new OTP."));
 
@@ -162,6 +160,8 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No registered account found for this email."));
 
+                emailVerificationRepo.deleteByEmailAndVerifiedFalseAndOrganizationName(email, "__RECOVERY__");
+
         String otp = otpService.generateOtp();
         String otpHash = hashOtp(otp);
         Instant now = Instant.now();
@@ -182,13 +182,8 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         emailVerificationRepo.save(recovery);
 
-        try {
-            emailService.sendOtpEmail(email, otp, "Key Recovery");
-            log.info("Recovery OTP requested for email: {}", email);
-        } catch (Exception e) {
-            log.error("Failed to send recovery OTP to {}: {}", email, e.getMessage());
-            throw new RuntimeException("Failed to send recovery OTP. Please try again later.", e);
-        }
+        emailService.sendOtpEmail(email, otp, "Key Recovery");
+        log.info("Recovery OTP requested for email: {}", email);
     }
 
     @Override
@@ -201,8 +196,8 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         // Find the pending recovery record (sentinel filter)
         var recovery = emailVerificationRepo
-                .findByEmailAndVerifiedFalseAndExpiresAtAfter(email, Instant.now())
-                .filter(v -> "__RECOVERY__".equals(v.getOrganizationName()))
+            .findFirstByEmailAndVerifiedFalseAndExpiresAtAfterAndOrganizationNameOrderByCreatedAtDesc(
+                email, Instant.now(), "__RECOVERY__")
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No pending recovery found. Please request a new recovery OTP."));
 

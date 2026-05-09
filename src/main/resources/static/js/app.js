@@ -44,7 +44,15 @@ function escHtml(str) {
 }
 
 function statusBadge(status) {
-    const map = { SUCCESS: 'badge-success', FAILED: 'badge-failed', DLQ: 'badge-failed', RUNNING: 'badge-warn', QUEUED: 'badge-warn' };
+    const map = {
+        SUCCESS: 'badge-success',
+        FAILED: 'badge-failed',
+        DLQ: 'badge-failed',
+        RUNNING: 'badge-warn',
+        QUEUED: 'badge-warn',
+        RETRY_SCHEDULED: 'badge-warn',
+        CANCELLED: 'badge-failed'
+    };
     return map[status] ?? 'badge-warn';
 }
 
@@ -178,9 +186,17 @@ async function submitJob() {
     const timeoutSeconds = document.getElementById('timeoutSeconds')?.value || '30';
     const callbackUrl = document.getElementById('callbackUrl')?.value;
     if (!executionEndpoint) { toast('Execution endpoint is required', 'error'); return; }
+    if (!/^https?:\/\//i.test(executionEndpoint.trim())) {
+        toast('Execution endpoint must start with http:// or https://', 'error');
+        return;
+    }
     let payload;
     try { payload = JSON.parse(payloadStr); }
     catch { toast('Malformed JSON payload', 'error'); return; }
+    if (callbackUrl && !/^https?:\/\//i.test(callbackUrl.trim())) {
+        toast('Callback URL must start with http:// or https://', 'error');
+        return;
+    }
     try {
         const idempotencyKey = crypto.randomUUID ? crypto.randomUUID() : 'sd_uid_' + Math.random().toString(36).substring(2);
         const reqBody = {

@@ -106,22 +106,25 @@ curl -X POST http://localhost:8080/api/jobs \
 - Leases prevent duplicate execution across workers.
 - Retries use exponential backoff to avoid retry storms.
 - Idempotency keys prevent duplicate job creation.
+- Job execution targets must be reachable HTTP/HTTPS endpoints that return 2xx responses; non-2xx responses, timeouts, and unreachable hosts will retry and eventually move to the DLQ.
+- Cancelled jobs are tracked separately from failures so operational reporting is clearer.
 - Orphan recovery re-queues jobs left in `RUNNING` after a crash.
 - DLQ handling keeps terminal failures visible for manual replay.
 - CircuitBreaker and Bulkhead (Resilience4j) protect against cascade failures during HTTP execution.
 
 ## Running Locally
 
-1. Copy `.env.example` to `.env` if you want to override defaults. Set `ADMIN_INITIAL_SECRET` to bootstrap the admin API key.
-2. Start PostgreSQL, Redis, and the app:
+1. Create a `.env` file at the project root if you want to override defaults. Set `ADMIN_INITIAL_SECRET` to bootstrap the admin API key.
+2. If you want outbound email for signup and recovery, set `MAIL_USERNAME` and `MAIL_PASSWORD` to a Gmail app password pair.
+3. Start PostgreSQL, Redis, and the app:
 
    ```bash
    docker compose up -d
    ```
 
-3. Visit `http://localhost:8080` for the public landing page, or `http://localhost:8080/login` to authenticate.
+4. Visit `http://localhost:8080` for the public landing page, `http://localhost:8080/signup` for self-service registration, or `http://localhost:8080/login` to authenticate.
 
-4. Run the application directly if you are not using Docker:
+5. Run the application directly if you are not using Docker:
 
    ```bash
    mvn spring-boot:run

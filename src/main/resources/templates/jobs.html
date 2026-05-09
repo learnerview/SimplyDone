@@ -13,6 +13,10 @@
                 <div class="section-header">
                     <h3 class="section-title">Execution Configuration</h3>
                 </div>
+                <div class="alert alert-info" style="display:block; margin-bottom:1rem;">
+                    Production jobs should target publicly reachable <strong>HTTP/HTTPS</strong> endpoints that return a 2xx response.
+                    Non-2xx responses, timeouts, and unreachable hosts are treated as failures and will retry before going to DLQ.
+                </div>
                 <form class="form-grid" onsubmit="submitJob(); return false;">
                     <div class="form-group">
                         <label>Target Handler (Job Type)</label>

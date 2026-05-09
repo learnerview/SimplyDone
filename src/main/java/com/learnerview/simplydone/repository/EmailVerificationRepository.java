@@ -9,7 +9,15 @@ import java.util.Optional;
 
 @Repository
 public interface EmailVerificationRepository extends JpaRepository<EmailVerificationEntity, String> {
-    Optional<EmailVerificationEntity> findByEmailAndVerifiedFalseAndExpiresAtAfter(String email, Instant now);
+    Optional<EmailVerificationEntity> findFirstByEmailAndVerifiedFalseAndExpiresAtAfterAndOrganizationNameNotOrderByCreatedAtDesc(
+        String email, Instant now, String organizationName);
+
+    Optional<EmailVerificationEntity> findFirstByEmailAndVerifiedFalseAndExpiresAtAfterAndOrganizationNameOrderByCreatedAtDesc(
+        String email, Instant now, String organizationName);
+
+        long deleteByEmailAndVerifiedFalseAndOrganizationNameNot(String email, String organizationName);
+
+        long deleteByEmailAndVerifiedFalseAndOrganizationName(String email, String organizationName);
 
     // findFirst avoids NonUniqueResultException when multiple verified rows
     // exist for the same email (e.g. original signup + a completed recovery OTP).

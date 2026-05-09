@@ -9,5 +9,9 @@ import java.util.Optional;
 @Repository
 public interface ApiKeyRepository extends JpaRepository<ApiKeyEntity, String> {
     Optional<ApiKeyEntity> findByApiKeyAndActiveTrue(String apiKey);
+
     Optional<ApiKeyEntity> findFirstByProducerAndActiveTrueOrderByCreatedAtDesc(String producer);
+
+    // Used by recovery flow to revoke ALL active keys for a producer atomically.
+    java.util.List<ApiKeyEntity> findAllByProducerAndActiveTrue(String producer);
 }

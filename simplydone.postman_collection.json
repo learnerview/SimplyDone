@@ -1,69 +1,205 @@
 {
   "info": {
     "name": "SimplyDone API",
+    "description": "Complete collection for the SimplyDone job scheduling API. Set baseUrl, apiKey (tenant), and adminKey (admin) in the collection variables before running.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Create Job",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "X-API-KEY", "value": "{{apiKey}}" },
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "url": "{{baseUrl}}/api/jobs",
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"jobType\": \"webhook\",\n  \"idempotencyKey\": \"postman-job-1\",\n  \"priority\": \"HIGH\",\n  \"execution\": {\n    \"type\": \"HTTP\",\n    \"endpoint\": \"https://example.com/webhook\"\n  },\n  \"payload\": {\n    \"type\": \"email\"\n  },\n  \"maxAttempts\": 3,\n  \"timeoutSeconds\": 30\n}"
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Sign Up — Request OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/signup/request-otp",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"you@example.com\",\n  \"organizationName\": \"Acme Corp\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Sign Up — Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/signup/verify-otp",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"you@example.com\",\n  \"otp\": \"123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Recover Key — Request OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/recover/request-otp",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"you@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Recover Key — Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/recover/verify-otp",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"you@example.com\",\n  \"otp\": \"123456\"\n}"
+            }
+          }
         }
-      }
+      ]
     },
     {
-      "name": "List Jobs",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "X-API-KEY", "value": "{{apiKey}}" }
-        ],
-        "url": "{{baseUrl}}/api/jobs?page=0&size=20"
-      }
+      "name": "Jobs",
+      "item": [
+        {
+          "name": "Submit Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-KEY", "value": "{{apiKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/jobs",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jobType\": \"webhook\",\n  \"idempotencyKey\": \"postman-job-1\",\n  \"priority\": \"HIGH\",\n  \"execution\": {\n    \"type\": \"HTTP\",\n    \"endpoint\": \"https://example.com/webhook\"\n  },\n  \"payload\": { \"type\": \"email\" },\n  \"maxAttempts\": 3,\n  \"timeoutSeconds\": 30\n}"
+            }
+          }
+        },
+        {
+          "name": "List Jobs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-KEY", "value": "{{apiKey}}" }],
+            "url": "{{baseUrl}}/api/jobs?page=0&size=20"
+          }
+        },
+        {
+          "name": "Get Job",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-KEY", "value": "{{apiKey}}" }],
+            "url": "{{baseUrl}}/api/jobs/{{jobId}}"
+          }
+        },
+        {
+          "name": "Cancel Job",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-API-KEY", "value": "{{apiKey}}" }],
+            "url": "{{baseUrl}}/api/jobs/{{jobId}}"
+          }
+        },
+        {
+          "name": "Health (Tenant Stats)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-KEY", "value": "{{apiKey}}" }],
+            "url": "{{baseUrl}}/api/jobs/health"
+          }
+        },
+        {
+          "name": "List DLQ",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-KEY", "value": "{{apiKey}}" }],
+            "url": "{{baseUrl}}/api/jobs/dlq"
+          }
+        },
+        {
+          "name": "Retry DLQ Job",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-API-KEY", "value": "{{apiKey}}" }],
+            "url": "{{baseUrl}}/api/jobs/dlq/{{jobId}}/retry"
+          }
+        }
+      ]
     },
     {
-      "name": "Fetch Metrics",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "X-API-KEY", "value": "{{adminKey}}" }
-        ],
-        "url": "{{baseUrl}}/api/admin/stats"
-      }
-    },
-    {
-      "name": "Inspect DLQ",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "X-API-KEY", "value": "{{adminKey}}" }
-        ],
-        "url": "{{baseUrl}}/api/admin/dlq"
-      }
-    },
-    {
-      "name": "Retry DLQ Job",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "X-API-KEY", "value": "{{adminKey}}" }
-        ],
-        "url": "{{baseUrl}}/api/admin/dlq/{{jobId}}/retry"
-      }
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Cluster Stats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-KEY", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/api/admin/stats"
+          }
+        },
+        {
+          "name": "List Keys (masked)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-KEY", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/api/admin/keys"
+          }
+        },
+        {
+          "name": "Create Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-KEY", "value": "{{adminKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/admin/keys",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"New Tenant\",\n  \"producer\": \"prod_abc123\",\n  \"admin\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Revoke Key",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-API-KEY", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/api/admin/keys/{{keyId}}"
+          }
+        },
+        {
+          "name": "DLQ — All Jobs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-KEY", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/api/admin/dlq"
+          }
+        },
+        {
+          "name": "DLQ — Retry Job",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-API-KEY", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/api/admin/dlq/{{jobId}}/retry"
+          }
+        },
+        {
+          "name": "Flush Queues",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-API-KEY", "value": "{{adminKey}}" }],
+            "url": "{{baseUrl}}/api/admin/queues"
+          }
+        }
+      ]
     }
   ],
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8080" },
     { "key": "apiKey", "value": "" },
     { "key": "adminKey", "value": "" },
-    { "key": "jobId", "value": "" }
+    { "key": "jobId", "value": "" },
+    { "key": "keyId", "value": "" }
   ]
 }

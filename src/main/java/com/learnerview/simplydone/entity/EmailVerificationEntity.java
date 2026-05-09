@@ -23,7 +23,7 @@ public class EmailVerificationEntity {
     @Column(length = 255, nullable = false)
     private String email;
 
-    @Column(length = 6, nullable = false)
+    @Column(length = 64, nullable = false)
     private String otpCode;
 
     @Column(nullable = false)

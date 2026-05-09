@@ -41,9 +41,9 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(readOnly = true)
     public QueueStatsResponse getStats() {
-        long success   = jobRepo.countByStatus(JobStatus.SUCCESS);
-        long failed    = jobRepo.countByStatus(JobStatus.FAILED);
-        long dlq       = jobRepo.countByStatus(JobStatus.DLQ);
+        long success = jobRepo.countByStatus(JobStatus.SUCCESS);
+        long failed = jobRepo.countByStatus(JobStatus.FAILED);
+        long dlq = jobRepo.countByStatus(JobStatus.DLQ);
         long processed = success + failed + dlq;
 
         double successRate = processed > 0 ? (success * 100.0 / processed) : 0.0;
@@ -142,8 +142,11 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(readOnly = true)
     public List<ApiKeyResponse> listKeys() {
+        // Keys are masked in list responses — only the last 4 chars are shown.
+        // The full key is only returned once at creation time (createKey below).
+        // This ensures a breached admin session cannot harvest all live credentials.
         return apiKeyRepo.findAll().stream()
-                .map(this::toResponse)
+                .map(this::toMaskedResponse)
                 .collect(Collectors.toList());
     }
 
@@ -170,10 +173,34 @@ public class AdminServiceImpl implements AdminService {
         });
     }
 
+    /**
+     * Returns the full key — used only at creation time so the caller can copy it
+     * once.
+     */
     private ApiKeyResponse toResponse(ApiKeyEntity e) {
         return ApiKeyResponse.builder()
                 .id(e.getId())
                 .apiKey(e.getApiKey())
+                .producer(e.getProducer())
+                .label(e.getLabel())
+                .active(e.isActive())
+                .admin(e.isAdmin())
+                .createdAt(e.getCreatedAt())
+                .build();
+    }
+
+    /**
+     * WHY: Returns a masked key (e.g. sd_sk_****ab3f) for list/audit views.
+     * Admins can identify keys by label/producer without seeing live credentials.
+     */
+    private ApiKeyResponse toMaskedResponse(ApiKeyEntity e) {
+        String raw = e.getApiKey();
+        String masked = raw.length() > 4
+                ? raw.substring(0, raw.lastIndexOf('_') + 1) + "****" + raw.substring(raw.length() - 4)
+                : "****";
+        return ApiKeyResponse.builder()
+                .id(e.getId())
+                .apiKey(masked)
                 .producer(e.getProducer())
                 .label(e.getLabel())
                 .active(e.isActive())

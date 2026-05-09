@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recover API Key - SimplyDone</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #e05195 0%, #6a11cb 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            padding: 40px;
+            margin-bottom: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #6a11cb;
+            margin-bottom: 10px;
+        }
+
+        .title {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .warning-banner {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            font-size: 13px;
+            color: #856404;
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #6a11cb;
+            box-shadow: 0 0 0 3px rgba(106, 17, 203, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #e05195 0%, #6a11cb 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(106, 17, 203, 0.35);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 28px 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #ddd;
+        }
+
+        .divider span {
+            background: white;
+            padding: 0 10px;
+            color: #999;
+            position: relative;
+            font-size: 14px;
+        }
+
+        .link-group {
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .link-group a {
+            color: #6a11cb;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .link-group a:hover {
+            text-decoration: underline;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* OTP Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 480px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-title {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .otp-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .otp-input {
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            font-size: 24px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: border-color 0.3s;
+        }
+
+        .otp-input:focus {
+            outline: none;
+            border-color: #6a11cb;
+        }
+
+        .otp-input.filled {
+            border-color: #6a11cb;
+        }
+
+        .resend-section {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .resend-timer {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        /* Success screen */
+        .success-screen {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .success-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .success-message {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .api-key-display {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #6a11cb;
+        }
+
+        .api-key-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .api-key-value {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #333;
+            word-break: break-all;
+            margin-bottom: 10px;
+        }
+
+        .copy-btn {
+            background: #6a11cb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .copy-btn:hover {
+            background: #e05195;
+        }
+
+        .revoke-notice {
+            background: #fdecea;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #721c24;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #fff;
+            animation: loading 1.4s infinite;
+            margin-left: 5px;
+        }
+
+        @keyframes loading {
+
+            0%,
+            100% {
+                opacity: 0.3;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                padding: 30px;
+            }
+
+            .title {
+                font-size: 20px;
+            }
+
+            .otp-input {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Step 1: Email form -->
+        <div class="card" id="recoveryForm">
+            <div class="header">
+                <div class="logo">🔑 SimplyDone</div>
+                <h1 class="title">Recover Your API Key</h1>
+                <p class="subtitle">Verify your email to get a new key. All old keys will be revoked.</p>
+            </div>
+
+            <div class="warning-banner">
+                ⚠️ <span>Recovery will <strong>permanently revoke</strong> all your existing API keys and issue a fresh
+                    one. Make sure you are ready to update any integrations.</span>
+            </div>
+
+            <div id="alertContainer"></div>
+
+            <form onsubmit="handleRequestRecovery(event)">
+                <div class="form-group">
+                    <label for="email">Registered Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="your@example.com" required
+                        autocomplete="email" autofocus>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="requestBtn">
+                    Send Recovery Code
+                </button>
+            </form>
+
+            <div class="divider"><span>Remember your key?</span></div>
+            <div class="link-group">
+                <a href="/login">Sign in here</a>
+                &nbsp;·&nbsp;
+                <a href="/signup">Create new account</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2: OTP Modal -->
+    <div class="modal" id="otpModal">
+        <div class="modal-content">
+            <h2 class="modal-title">🔐 Enter Recovery Code</h2>
+            <div id="otpAlertContainer"></div>
+            <p style="text-align:center;color:#666;margin-bottom:20px;font-size:14px;">
+                We've sent a 6-digit recovery code to <strong id="otpEmail"></strong>
+            </p>
+            <div class="form-group">
+                <label style="text-align:center;display:block;">Verification Code</label>
+                <div class="otp-input-group" id="otpInputGroup">
+                    <input type="text" class="otp-input" maxlength="1" placeholder="-">
+                    <input type="text" class="otp-input" maxlength="1" placeholder="-">
+                    <input type="text" class="otp-input" maxlength="1" placeholder="-">
+                    <input type="text" class="otp-input" maxlength="1" placeholder="-">
+                    <input type="text" class="otp-input" maxlength="1" placeholder="-">
+                    <input type="text" class="otp-input" maxlength="1" placeholder="-">
+                </div>
+            </div>
+            <button type="button" class="btn btn-primary" id="verifyBtn" onclick="handleVerifyRecovery()">
+                Verify &amp; Issue New Key
+            </button>
+            <div class="resend-section">
+                <div class="resend-timer" id="resendTimer"></div>
+                <button type="button" id="resendBtn" onclick="handleResend()"
+                    style="background:white;border:1px solid #ddd;color:#6a11cb;width:100%;padding:10px;border-radius:8px;font-weight:600;cursor:pointer;margin-top:4px;"
+                    disabled>
+                    Resend Code
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 3: Success Modal -->
+    <div class="modal" id="successModal">
+        <div class="modal-content">
+            <div class="success-screen">
+                <div class="success-icon">✅</div>
+                <h2 class="success-message">Key Recovery Successful!</h2>
+                <p style="color:#666;margin-bottom:16px;">Your new API key is shown below. Your previous keys have been
+                    permanently revoked.</p>
+
+                <div class="revoke-notice">
+                    🗑️ All previous API keys for your account have been revoked. Update any existing integrations with
+                    the new key below.
+                </div>
+
+                <div class="api-key-display">
+                    <div class="api-key-label">Organization</div>
+                    <div class="api-key-value" id="successOrgName"></div>
+
+                    <div class="api-key-label" style="margin-top:15px;">Producer ID</div>
+                    <div class="api-key-value" id="successProducerId"></div>
+
+                    <div class="api-key-label" style="margin-top:15px;">New API Key</div>
+                    <div class="api-key-value" style="color:#d32f2f;font-weight:bold;" id="successApiKey"></div>
+                    <button type="button" class="copy-btn" onclick="copyKey()">
+                        Copy Key
+                    </button>
+                </div>
+
+                <p style="color:#666;font-size:13px;margin-bottom:24px;">
+                    ⚠️ Save this key securely. It will not be shown again.
+                    Your key has also been emailed to you.
+                </p>
+
+                <a href="/login" class="btn btn-primary" style="text-decoration:none;display:inline-block;">
+                    Go to Login
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentEmail = '';
+        let resendInterval = null;
+
+        function showAlert(message, type = 'info', containerId = 'alertContainer') {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `alert alert-${type}`;
+            div.textContent = message;
+            div.style.display = 'block';
+            container.innerHTML = '';
+            container.appendChild(div);
+            if (type !== 'error') {
+                setTimeout(() => div.style.display = 'none', 5000);
+            }
+        }
+
+        function copyKey() {
+            const key = document.getElementById('successApiKey').innerText;
+            navigator.clipboard.writeText(key).then(() => {
+                showAlert('API key copied to clipboard!', 'success', 'otpAlertContainer');
+            });
+        }
+
+        async function handleRequestRecovery(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const btn = document.getElementById('requestBtn');
+
+            btn.disabled = true;
+            btn.innerHTML = 'Sending Code<span class="loading"></span>';
+
+            try {
+                const res = await fetch('/api/auth/recover/request-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    currentEmail = email;
+                    document.getElementById('otpEmail').textContent = email;
+                    document.getElementById('recoveryForm').style.display = 'none';
+                    document.getElementById('otpModal').classList.add('active');
+                    resetOtpInputs();
+                    startResendTimer();
+                } else {
+                    showAlert(data.message || 'Failed to send recovery code.', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Send Recovery Code';
+                }
+            } catch (e) {
+                showAlert('Network error. Please try again.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = 'Send Recovery Code';
+            }
+        }
+
+        function resetOtpInputs() {
+            const inputs = document.querySelectorAll('.otp-input');
+            inputs.forEach((input, index) => {
+                input.value = '';
+                input.classList.remove('filled');
+                if (index === 0) input.focus();
+                input.oninput = (e) => {
+                    if (e.target.value.length > 1) e.target.value = e.target.value.slice(0, 1);
+                    if (e.target.value && index < inputs.length - 1) inputs[index + 1].focus();
+                    input.classList.toggle('filled', input.value !== '');
+                };
+                input.onkeydown = (e) => {
+                    if (e.key === 'Backspace' && !e.target.value && index > 0) inputs[index - 1].focus();
+                };
+            });
+        }
+
+        function startResendTimer() {
+            let seconds = 30;
+            const btn = document.getElementById('resendBtn');
+            const timer = document.getElementById('resendTimer');
+            btn.disabled = true;
+            clearInterval(resendInterval);
+            resendInterval = setInterval(() => {
+                seconds--;
+                timer.textContent = `Resend code in ${seconds}s`;
+                if (seconds <= 0) {
+                    clearInterval(resendInterval);
+                    btn.disabled = false;
+                    timer.textContent = '';
+                }
+            }, 1000);
+        }
+
+        async function handleResend() {
+            const btn = document.getElementById('resendBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'Sending<span class="loading"></span>';
+            try {
+                const res = await fetch('/api/auth/recover/request-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: currentEmail })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showAlert('Recovery code resent to your email.', 'info', 'otpAlertContainer');
+                    resetOtpInputs();
+                    startResendTimer();
+                } else {
+                    showAlert(data.message || 'Failed to resend code.', 'error', 'otpAlertContainer');
+                }
+            } catch (e) {
+                showAlert('Network error. Please try again.', 'error', 'otpAlertContainer');
+            } finally {
+                btn.innerHTML = 'Resend Code';
+            }
+        }
+
+        async function handleVerifyRecovery() {
+            const inputs = document.querySelectorAll('.otp-input');
+            const otp = Array.from(inputs).map(i => i.value).join('');
+
+            if (otp.length !== 6) {
+                showAlert('Please enter all 6 digits.', 'error', 'otpAlertContainer');
+                return;
+            }
+
+            const btn = document.getElementById('verifyBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'Verifying<span class="loading"></span>';
+
+            try {
+                const res = await fetch('/api/auth/recover/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: currentEmail, otp })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.data) {
+                    const { apiKey, producerId, organizationName } = data.data;
+                    document.getElementById('successOrgName').textContent = organizationName;
+                    document.getElementById('successProducerId').textContent = producerId;
+                    document.getElementById('successApiKey').textContent = apiKey;
+                    document.getElementById('otpModal').classList.remove('active');
+                    document.getElementById('successModal').classList.add('active');
+                } else {
+                    showAlert(data.message || 'Verification failed. Please try again.', 'error', 'otpAlertContainer');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Verify &amp; Issue New Key';
+                }
+            } catch (e) {
+                showAlert('Network error. Please try again.', 'error', 'otpAlertContainer');
+                btn.disabled = false;
+                btn.innerHTML = 'Verify &amp; Issue New Key';
+            }
+        }
+    </script>
+</body>
+
+</html>

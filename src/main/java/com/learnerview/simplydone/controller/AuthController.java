@@ -72,4 +72,58 @@ public class AuthController {
                     .build());
         }
     }
+
+    /**
+     * Step 1 of key recovery: send an OTP to the registered email.
+     * Only works for emails that have already been verified (registered users).
+     */
+    @PostMapping("/recover/request-otp")
+    public ResponseEntity<ApiResponse<Void>> requestRecoveryOtp(@RequestBody SignupRequest request) {
+        try {
+            registrationService.requestRecoveryOtp(request.getEmail());
+            return ResponseEntity.ok(ApiResponse.<Void>builder()
+                    .success(true)
+                    .message("Recovery OTP sent to your email.")
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.<Void>builder()
+                    .success(false)
+                    .message(e.getMessage())
+                    .build());
+        } catch (Exception e) {
+            log.error("Error requesting recovery OTP: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<Void>builder()
+                    .success(false)
+                    .message("Failed to send recovery OTP. Please try again later.")
+                    .build());
+        }
+    }
+
+    /**
+     * Step 2 of key recovery: verify OTP, revoke old keys, and issue a new one.
+     * The new API key is returned in the response AND emailed to the user.
+     */
+    @PostMapping("/recover/verify-otp")
+    public ResponseEntity<ApiResponse<RegistrationResponse>> recoverKey(
+            @RequestBody OtpVerificationRequest request) {
+        try {
+            RegistrationResponse response = registrationService.recoverKey(request.getEmail(), request.getOtp());
+            return ResponseEntity.ok(ApiResponse.<RegistrationResponse>builder()
+                    .success(true)
+                    .message("Key recovery successful! All previous keys have been revoked.")
+                    .data(response)
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.<RegistrationResponse>builder()
+                    .success(false)
+                    .message(e.getMessage())
+                    .build());
+        } catch (Exception e) {
+            log.error("Error recovering key: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<RegistrationResponse>builder()
+                    .success(false)
+                    .message("Failed to recover key. Please try again later.")
+                    .build());
+        }
+    }
 }

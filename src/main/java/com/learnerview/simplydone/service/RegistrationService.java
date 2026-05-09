@@ -15,4 +15,14 @@ public interface RegistrationService {
      * Verify OTP and create API key.
      */
     RegistrationResponse verifyOtpAndCreateKey(String email, String otp);
+
+    /**
+     * Request OTP for key recovery. Only works for emails that have an active API key.
+     */
+    void requestRecoveryOtp(String email);
+
+    /**
+     * Verify recovery OTP, revoke old key, issue a new one.
+     */
+    RegistrationResponse recoverKey(String email, String otp);
 }

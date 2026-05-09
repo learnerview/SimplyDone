@@ -13,4 +13,9 @@ public class PublicViewController {
     public String signup() {
         return "signup";
     }
+
+    @GetMapping("/recover")
+    public String recover() {
+        return "recover";
+    }
 }

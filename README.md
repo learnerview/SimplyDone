@@ -37,6 +37,15 @@ When SimplyDone executes a job, it computes an HMAC-SHA256 hash of the JSON payl
 
 ## API Surface
 
+### Authentication Endpoints (public)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/auth/signup/request-otp` | Send a verification code to the provided email |
+| `POST` | `/api/auth/signup/verify-otp` | Verify the code and receive an API key |
+| `POST` | `/api/auth/recover/request-otp` | Send a recovery code to a registered email |
+| `POST` | `/api/auth/recover/verify-otp` | Verify the code, revoke all old keys, and receive a new one |
+
 ### Job Endpoints (authenticated)
 
 | Method | Path | Description |
@@ -56,7 +65,7 @@ When SimplyDone executes a job, it computes an HMAC-SHA256 hash of the JSON payl
 | `GET` | `/api/admin/stats` | Cluster-wide queue and execution metrics |
 | `GET` | `/api/admin/dlq` | List all DLQ jobs (system-wide) |
 | `POST` | `/api/admin/dlq/{id}/retry` | Re-queue any DLQ job |
-| `GET` | `/api/admin/keys` | List all API keys |
+| `GET` | `/api/admin/keys` | List all API keys (values are masked; full key shown only at creation) |
 | `POST` | `/api/admin/keys` | Issue a new API key |
 | `DELETE` | `/api/admin/keys/{id}` | Revoke an API key |
 | `DELETE` | `/api/admin/queues` | Flush all Redis queues |
@@ -81,6 +90,16 @@ curl -X POST http://localhost:8080/api/jobs \
     "timeoutSeconds": 30
   }'
 ```
+
+## Security
+
+- Every API request must include a valid `X-API-KEY` header.
+- Admin endpoints additionally require the key to carry the `ADMIN` role.
+- Jobs are scoped to the submitting tenant — organizations can only access their own data.
+- OTPs are SHA-256 hashed before storage. A database breach does not expose usable codes.
+- Admin key listings return masked values (e.g. `sd_sk_****ab3f`). The full key is shown once at creation time only.
+- Actuator is restricted to `/actuator/health` and `/actuator/metrics`. Sensitive endpoints cannot be accidentally exposed.
+- If you lose your API key, visit `/recover`. Provide your registered email, verify the OTP, and a new key is issued. All previous keys for the account are revoked immediately.
 
 ## Reliability Model
 

@@ -37,30 +37,32 @@ public class RegistrationServiceImpl implements RegistrationService {
     @Value("${simplydone.registration.max-verification-attempts:3}")
     private int maxVerificationAttempts;
 
+    // OTPs are hashed with SHA-256 before storage so that a database breach
+    // does not expose usable one-time codes. The plaintext OTP is sent only to
+    // the user's email inbox and is never persisted anywhere.
+
     @Override
     public void requestOtp(String email, String organizationName) {
         email = email.trim().toLowerCase();
-        
-        // Validate email format
+
         if (!isValidEmail(email)) {
             throw new IllegalArgumentException("Invalid email format");
         }
 
-        // Check if email already verified (has active API key)
-        var existingVerification = emailVerificationRepo.findByEmailAndVerifiedTrue(email);
+        var existingVerification = emailVerificationRepo.findFirstByEmailAndVerifiedTrueOrderByCreatedAtAsc(email);
         if (existingVerification.isPresent()) {
             throw new IllegalArgumentException("Email already registered. Please login with your API key.");
         }
 
-        // Generate and save OTP
         String otp = otpService.generateOtp();
+        String otpHash = hashOtp(otp); // store hash, never plaintext
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(otpValidityMinutes * 60L);
 
         var verification = EmailVerificationEntity.builder()
                 .id(UUID.randomUUID().toString())
                 .email(email)
-                .otpCode(otp)
+                .otpCode(otpHash)
                 .verified(false)
                 .verificationAttempts(0)
                 .organizationName(organizationName)
@@ -70,9 +72,8 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         emailVerificationRepo.save(verification);
 
-        // Send OTP email
         try {
-            emailService.sendOtpEmail(email, otp, organizationName);
+            emailService.sendOtpEmail(email, otp, organizationName); // plaintext only in email
             log.info("OTP requested for email: {}", email);
         } catch (Exception e) {
             log.error("Failed to send OTP email to {}: {}", email, e.getMessage());
@@ -84,35 +85,31 @@ public class RegistrationServiceImpl implements RegistrationService {
     public RegistrationResponse verifyOtpAndCreateKey(String email, String otp) {
         email = email.trim().toLowerCase();
 
-        // Validate OTP format
         if (!otpService.isValidOtpFormat(otp)) {
             throw new IllegalArgumentException("Invalid OTP format");
         }
 
-        // Find pending verification
         var verification = emailVerificationRepo
                 .findByEmailAndVerifiedFalseAndExpiresAtAfter(email, Instant.now())
-                .orElseThrow(() -> new IllegalArgumentException("No pending verification found. Please request a new OTP."));
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No pending verification found. Please request a new OTP."));
 
-        // Check OTP attempts
         if (verification.getVerificationAttempts() >= maxVerificationAttempts) {
             emailVerificationRepo.delete(verification);
             throw new IllegalArgumentException("Max verification attempts exceeded. Please request a new OTP.");
         }
 
-        // Verify OTP
-        if (!verification.getOtpCode().equals(otp)) {
+        // Hash the user's input and compare hashes — plaintext never hits the DB.
+        if (!hashOtp(otp).equals(verification.getOtpCode())) {
             verification.setVerificationAttempts(verification.getVerificationAttempts() + 1);
             emailVerificationRepo.save(verification);
             throw new IllegalArgumentException("Invalid OTP. Please try again.");
         }
 
-        // Mark as verified
         verification.setVerified(true);
         verification.setVerifiedAt(Instant.now());
         emailVerificationRepo.save(verification);
 
-        // Create API key
         String producerId = generateProducerId(email);
         String apiKey = "sd_sk_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
 
@@ -128,12 +125,11 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         apiKeyRepo.save(keyEntity);
 
-        // Send welcome email
         try {
             emailService.sendWelcomeEmail(email, verification.getOrganizationName(), apiKey, producerId);
         } catch (Exception e) {
             log.error("Failed to send welcome email to {}: {}", email, e.getMessage());
-            // Don't throw - key was already created, just log the error
+            // Don't throw — key was already created
         }
 
         log.info("New API key created for producer: {}", producerId);
@@ -146,15 +142,156 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .build();
     }
 
+    // KEY RECOVERY FLOW
+    // WHY: A user who has lost their key proves identity via their registered
+    // email. A recovery OTP is sent; on verification all old active keys are
+    // revoked and a fresh key is issued. A breached DB yields only hashed OTPs
+    // (useless) — no attacker can reconstruct or reuse the old or new keys.
+
+    @Override
+    public void requestRecoveryOtp(String email) {
+        email = email.trim().toLowerCase();
+
+        if (!isValidEmail(email)) {
+            throw new IllegalArgumentException("Invalid email format");
+        }
+
+        // Only registered users (have a verified signup record) can trigger recovery
+        emailVerificationRepo.findFirstByEmailAndVerifiedTrueOrderByCreatedAtAsc(email)
+                .filter(v -> !"__RECOVERY__".equals(v.getOrganizationName()))
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No registered account found for this email."));
+
+        String otp = otpService.generateOtp();
+        String otpHash = hashOtp(otp);
+        Instant now = Instant.now();
+        Instant expiresAt = now.plusSeconds(otpValidityMinutes * 60L);
+
+        // Sentinel value "__RECOVERY__" in organizationName distinguishes this
+        // record from signup verifications without needing a separate DB table/column.
+        var recovery = EmailVerificationEntity.builder()
+                .id(UUID.randomUUID().toString())
+                .email(email)
+                .otpCode(otpHash)
+                .verified(false)
+                .verificationAttempts(0)
+                .organizationName("__RECOVERY__")
+                .createdAt(now)
+                .expiresAt(expiresAt)
+                .build();
+
+        emailVerificationRepo.save(recovery);
+
+        try {
+            emailService.sendOtpEmail(email, otp, "Key Recovery");
+            log.info("Recovery OTP requested for email: {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send recovery OTP to {}: {}", email, e.getMessage());
+            throw new RuntimeException("Failed to send recovery OTP. Please try again later.", e);
+        }
+    }
+
+    @Override
+    public RegistrationResponse recoverKey(String email, String otp) {
+        email = email.trim().toLowerCase();
+
+        if (!otpService.isValidOtpFormat(otp)) {
+            throw new IllegalArgumentException("Invalid OTP format");
+        }
+
+        // Find the pending recovery record (sentinel filter)
+        var recovery = emailVerificationRepo
+                .findByEmailAndVerifiedFalseAndExpiresAtAfter(email, Instant.now())
+                .filter(v -> "__RECOVERY__".equals(v.getOrganizationName()))
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No pending recovery found. Please request a new recovery OTP."));
+
+        if (recovery.getVerificationAttempts() >= maxVerificationAttempts) {
+            emailVerificationRepo.delete(recovery);
+            throw new IllegalArgumentException("Max verification attempts exceeded. Please request a new OTP.");
+        }
+
+        if (!hashOtp(otp).equals(recovery.getOtpCode())) {
+            recovery.setVerificationAttempts(recovery.getVerificationAttempts() + 1);
+            emailVerificationRepo.save(recovery);
+            throw new IllegalArgumentException("Invalid OTP. Please try again.");
+        }
+
+        // WHY: Fetch original BEFORE marking recovery verified — avoids
+        // NonUniqueResultException (two verified rows for same email would exist
+        // after recovery.setVerified(true) is saved below).
+        var original = emailVerificationRepo.findFirstByEmailAndVerifiedTrueOrderByCreatedAtAsc(email)
+                .filter(v -> !"__RECOVERY__".equals(v.getOrganizationName()))
+                .orElseThrow(() -> new IllegalArgumentException("Original registration record not found."));
+
+        // Now safe to mark the recovery token as verified
+        recovery.setVerified(true);
+        recovery.setVerifiedAt(Instant.now());
+        emailVerificationRepo.save(recovery);
+
+        String producerId = generateProducerId(email);
+
+        // Revoke ALL active keys for this producer so any stolen key is
+        // immediately dead. The new key is the only valid credential post-recovery.
+        var oldKeys = apiKeyRepo.findAllByProducerAndActiveTrue(producerId);
+        oldKeys.forEach(k -> {
+            k.setActive(false);
+            apiKeyRepo.save(k);
+        });
+        log.info("Revoked {} old key(s) for producer {} during recovery", oldKeys.size(), producerId);
+
+        String newApiKey = "sd_sk_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        ApiKeyEntity newKey = ApiKeyEntity.builder()
+                .id(UUID.randomUUID().toString())
+                .apiKey(newApiKey)
+                .producer(producerId)
+                .label(original.getOrganizationName() + " (Recovered)")
+                .admin(false)
+                .active(true)
+                .createdAt(Instant.now())
+                .build();
+        apiKeyRepo.save(newKey);
+
+        try {
+            emailService.sendWelcomeEmail(email, original.getOrganizationName(), newApiKey, producerId);
+        } catch (Exception e) {
+            log.error("Failed to send recovery email to {}: {}", email, e.getMessage());
+        }
+
+        log.info("Key recovered for producer: {}", producerId);
+
+        return RegistrationResponse.builder()
+                .apiKey(newApiKey)
+                .producerId(producerId)
+                .organizationName(original.getOrganizationName())
+                .message(
+                        "Key recovery successful! Your new API key has been sent to your email. All previous keys have been revoked.")
+                .build();
+    }
+
+    // Helpers
+
+    /**
+     * WHY: SHA-256 is one-way — a breached DB gives attackers 64-char hex hashes
+     * with no way back to the 6-digit OTP. OTPs also expire in 10 minutes and
+     * are single-use, making brute-force attacks on the hash impractical.
+     */
+    private String hashOtp(String otp) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(otp.getBytes(StandardCharsets.UTF_8));
+            return bytesToHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
+    }
+
     private String generateProducerId(String email) {
-        // Generate deterministic producer ID from email hash
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] hash = md.digest(email.getBytes(StandardCharsets.UTF_8));
-            String hashHex = bytesToHex(hash).substring(0, 12);
-            return "prod_" + hashHex;
+            return "prod_" + bytesToHex(hash).substring(0, 12);
         } catch (NoSuchAlgorithmException e) {
-            // Fallback to random if hash fails
             return "prod_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         }
     }

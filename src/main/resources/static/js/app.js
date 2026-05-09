@@ -84,7 +84,47 @@ async function loadStats() {
             const el = document.getElementById(id);
             if (el) el.textContent = v;
         });
+        if (isAdminPage) await loadEmailVerificationSettings();
     } catch (e) { }
+}
+
+async function loadEmailVerificationSettings() {
+    const stateEl = document.getElementById('emailVerificationState');
+    const messageEl = document.getElementById('emailVerificationMessage');
+    const buttonEl = document.getElementById('emailVerificationToggleBtn');
+    if (!stateEl || !messageEl || !buttonEl || !getApiKey()) return;
+    try {
+        const d = await api('/api/admin/settings/email-verification');
+        const enabled = !!d?.data?.enabled;
+        stateEl.textContent = enabled ? 'Enabled' : 'Disabled';
+        messageEl.textContent = d?.data?.message ?? (enabled ? 'Email verification is enabled.' : 'Email verification is disabled.');
+        buttonEl.textContent = enabled ? 'Disable Email Verification' : 'Enable Email Verification';
+        buttonEl.dataset.enabled = String(enabled);
+    } catch (_) {
+        stateEl.textContent = 'Unavailable';
+        messageEl.textContent = 'Could not load email verification settings.';
+        buttonEl.textContent = 'Reload Settings';
+    }
+}
+
+async function toggleEmailVerification() {
+    const buttonEl = document.getElementById('emailVerificationToggleBtn');
+    if (!buttonEl) return;
+    const currentEnabled = buttonEl.dataset.enabled !== 'false';
+    try {
+        buttonEl.disabled = true;
+        buttonEl.textContent = 'Saving...';
+        await api('/api/admin/settings/email-verification', {
+            method: 'PUT',
+            body: JSON.stringify({ enabled: !currentEnabled })
+        });
+        await loadEmailVerificationSettings();
+        toast(`Email verification ${currentEnabled ? 'disabled' : 'enabled'}`, 'info');
+    } catch (_) {
+        buttonEl.disabled = false;
+    } finally {
+        buttonEl.disabled = false;
+    }
 }
 
 async function loadJobs() {
@@ -356,5 +396,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tab === 'keys') loadKeys();
             if (tab === 'stats') loadStats();
         }
+        loadEmailVerificationSettings();
     }
 });

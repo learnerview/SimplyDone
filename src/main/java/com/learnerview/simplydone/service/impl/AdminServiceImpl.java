@@ -2,6 +2,7 @@ package com.learnerview.simplydone.service.impl;
 
 import com.learnerview.simplydone.dto.ApiKeyRequest;
 import com.learnerview.simplydone.dto.ApiKeyResponse;
+import com.learnerview.simplydone.dto.EmailVerificationSettingsResponse;
 import com.learnerview.simplydone.dto.JobResponse;
 import com.learnerview.simplydone.dto.QueueStatsResponse;
 import com.learnerview.simplydone.entity.ApiKeyEntity;
@@ -14,6 +15,7 @@ import com.learnerview.simplydone.repository.ApiKeyRepository;
 import com.learnerview.simplydone.repository.JobEntityRepository;
 import com.learnerview.simplydone.repository.QueueRepository;
 import com.learnerview.simplydone.service.AdminService;
+import com.learnerview.simplydone.service.EmailVerificationSettingsService;
 import com.learnerview.simplydone.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -37,6 +39,7 @@ public class AdminServiceImpl implements AdminService {
     private final JobMapper jobMapper;
     private final SseEmitterService sseEmitterService;
     private final ApiKeyRepository apiKeyRepo;
+    private final EmailVerificationSettingsService emailVerificationSettingsService;
 
     @Override
     @Transactional(readOnly = true)
@@ -171,6 +174,25 @@ public class AdminServiceImpl implements AdminService {
             key.setActive(false);
             apiKeyRepo.save(key);
         });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public EmailVerificationSettingsResponse getEmailVerificationSettings() {
+        boolean enabled = emailVerificationSettingsService.isEmailVerificationEnabled();
+        return EmailVerificationSettingsResponse.builder()
+                .enabled(enabled)
+                .message(enabled ? "Email verification is enabled." : "Email verification is disabled.")
+                .build();
+    }
+
+    @Override
+    public EmailVerificationSettingsResponse setEmailVerificationEnabled(boolean enabled) {
+        emailVerificationSettingsService.setEmailVerificationEnabled(enabled);
+        return EmailVerificationSettingsResponse.builder()
+                .enabled(enabled)
+                .message(enabled ? "Email verification enabled." : "Email verification disabled.")
+                .build();
     }
 
     /**

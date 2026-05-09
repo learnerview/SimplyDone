@@ -9,7 +9,7 @@ public interface RegistrationService {
     /**
      * Request OTP for email verification.
      */
-    void requestOtp(String email, String organizationName);
+    RegistrationResponse requestOtp(String email, String organizationName);
     
     /**
      * Verify OTP and create API key.

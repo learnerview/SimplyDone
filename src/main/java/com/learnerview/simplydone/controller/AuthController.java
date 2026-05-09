@@ -24,21 +24,28 @@ public class AuthController {
      * This initiates the self-service registration flow.
      */
     @PostMapping("/signup/request-otp")
-    public ResponseEntity<ApiResponse<Void>> requestOtp(@RequestBody SignupRequest request) {
+        public ResponseEntity<ApiResponse<RegistrationResponse>> requestOtp(@RequestBody SignupRequest request) {
         try {
-            registrationService.requestOtp(request.getEmail(), request.getOrganizationName());
-            return ResponseEntity.ok(ApiResponse.<Void>builder()
-                    .success(true)
-                    .message("OTP sent to your email. Please check your inbox.")
-                    .build());
+            RegistrationResponse response = registrationService.requestOtp(request.getEmail(), request.getOrganizationName());
+            ApiResponse.ApiResponseBuilder<RegistrationResponse> builder = ApiResponse.<RegistrationResponse>builder()
+                .success(true);
+            if (response != null) {
+            return ResponseEntity.ok(builder
+                .message(response.getMessage())
+                .data(response)
+                .build());
+            }
+            return ResponseEntity.ok(builder
+                .message("OTP sent to your email. Please check your inbox.")
+                .build());
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.<Void>builder()
+            return ResponseEntity.badRequest().body(ApiResponse.<RegistrationResponse>builder()
                     .success(false)
                     .message(e.getMessage())
                     .build());
         } catch (Exception e) {
             log.error("Error requesting OTP: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<Void>builder()
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<RegistrationResponse>builder()
                     .success(false)
                     .message("Failed to send OTP. Please try again later.")
                     .build());

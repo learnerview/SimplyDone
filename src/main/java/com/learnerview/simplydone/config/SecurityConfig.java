@@ -32,7 +32,7 @@ public class SecurityConfig {
                                                                 // are accidentally added to
                                                                 // management.endpoints.web.exposure.include,
                                                                 // they will NOT be publicly reachable.
-                                                                "/actuator/health", "/actuator/metrics")
+                                                                       "/actuator/health", "/actuator/metrics", "/ready")
                                                 .permitAll()
                                                 .requestMatchers("/api/auth/**").permitAll()
                                                 .requestMatchers("/", "/dashboard", "/jobs", "/admin", "/dlq", "/error", "/recover")

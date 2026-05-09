@@ -67,4 +67,17 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.<Void>builder()
                 .success(true).message("API Key revoked").build());
     }
+
+    @GetMapping("/settings/email-verification")
+    public ResponseEntity<ApiResponse<EmailVerificationSettingsResponse>> emailVerificationSettings() {
+        return ResponseEntity.ok(ApiResponse.<EmailVerificationSettingsResponse>builder()
+                .success(true).data(adminService.getEmailVerificationSettings()).build());
+    }
+
+    @PutMapping("/settings/email-verification")
+    public ResponseEntity<ApiResponse<EmailVerificationSettingsResponse>> updateEmailVerificationSettings(
+            @RequestBody EmailVerificationToggleRequest request) {
+        return ResponseEntity.ok(ApiResponse.<EmailVerificationSettingsResponse>builder()
+                .success(true).data(adminService.setEmailVerificationEnabled(request.isEnabled())).build());
+    }
 }

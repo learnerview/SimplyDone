@@ -25,6 +25,14 @@
                             <button class="btn btn-primary btn-sm" onclick="loadStats()">Sync Cluster</button>
                         </div>
                     </div>
+                    <div class="data-box" style="margin-bottom: 1.5rem; display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+                        <div>
+                            <div class="label" style="text-transform:uppercase; letter-spacing:0.08em; font-size:0.75rem; color:var(--text-muted);">Email Verification</div>
+                            <div style="font-size:1rem; font-weight:600; margin-top:0.25rem;" id="emailVerificationState">Loading...</div>
+                            <div style="font-size:0.85rem; color:var(--text-muted); margin-top:0.25rem;" id="emailVerificationMessage">Checking settings...</div>
+                        </div>
+                        <button class="btn btn-outline btn-sm" id="emailVerificationToggleBtn" onclick="toggleEmailVerification()">Loading...</button>
+                    </div>
                     <div class="metrics-bar" style="padding: 1.5rem 0; background: none; border-bottom: none;">
                         <div class="metric-item">
                             <div class="label">Total Queued</div>

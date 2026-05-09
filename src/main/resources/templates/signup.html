@@ -518,13 +518,17 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    currentEmail = email;
-                    currentOrgName = orgName;
-                    document.getElementById('otpEmail').textContent = email;
-                    document.getElementById('signupForm').style.display = 'none';
-                    document.getElementById('otpModal').classList.add('active');
-                    resetOtpInputs();
-                    startResendTimer();
+                    if (data.data && data.data.apiKey) {
+                        showSignupSuccess(data.data);
+                    } else {
+                        currentEmail = email;
+                        currentOrgName = orgName;
+                        document.getElementById('otpEmail').textContent = email;
+                        document.getElementById('signupForm').style.display = 'none';
+                        document.getElementById('otpModal').classList.add('active');
+                        resetOtpInputs();
+                        startResendTimer();
+                    }
                 } else {
                     showAlert(data.message || 'Failed to send OTP', 'error');
                     btn.disabled = false;
@@ -633,12 +637,7 @@
                 const data = await response.json();
 
                 if (response.ok && data.data) {
-                    const { apiKey, producerId, organizationName } = data.data;
-                    document.getElementById('successOrgName').textContent = organizationName;
-                    document.getElementById('successProducerId').textContent = producerId;
-                    document.getElementById('successApiKey').textContent = apiKey;
-                    document.getElementById('otpModal').classList.remove('active');
-                    document.getElementById('successModal').style.display = 'flex';
+                    showSignupSuccess(data.data);
                 } else {
                     showAlert(data.message || 'Verification failed', 'error', 'otpAlertContainer');
                     btn.disabled = false;
@@ -648,6 +647,19 @@
                 showAlert('Network error. Please try again.', 'error', 'otpAlertContainer');
                 btn.disabled = false;
                 btn.innerHTML = 'Verify & Create Key';
+            }
+        }
+
+        function showSignupSuccess(data) {
+            const { apiKey, producerId, organizationName, message } = data;
+            document.getElementById('successOrgName').textContent = organizationName;
+            document.getElementById('successProducerId').textContent = producerId;
+            document.getElementById('successApiKey').textContent = apiKey;
+            document.getElementById('otpModal').classList.remove('active');
+            document.getElementById('signupForm').style.display = 'none';
+            document.getElementById('successModal').style.display = 'flex';
+            if (message) {
+                showAlert(message, 'success', 'otpAlertContainer');
             }
         }
     </script>

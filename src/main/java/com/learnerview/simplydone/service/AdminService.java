@@ -2,6 +2,7 @@ package com.learnerview.simplydone.service;
 
 import com.learnerview.simplydone.dto.JobResponse;
 import com.learnerview.simplydone.dto.QueueStatsResponse;
+import com.learnerview.simplydone.dto.EmailVerificationSettingsResponse;
 import com.learnerview.simplydone.model.JobStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,4 +34,8 @@ public interface AdminService {
     ApiKeyResponse createKey(ApiKeyRequest request);
 
     void revokeKey(String keyId);
+
+    EmailVerificationSettingsResponse getEmailVerificationSettings();
+
+    EmailVerificationSettingsResponse setEmailVerificationEnabled(boolean enabled);
 }

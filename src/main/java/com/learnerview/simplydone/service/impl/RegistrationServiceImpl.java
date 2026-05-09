@@ -6,6 +6,7 @@ import com.learnerview.simplydone.entity.EmailVerificationEntity;
 import com.learnerview.simplydone.repository.ApiKeyRepository;
 import com.learnerview.simplydone.repository.EmailVerificationRepository;
 import com.learnerview.simplydone.service.EmailService;
+import com.learnerview.simplydone.service.EmailVerificationSettingsService;
 import com.learnerview.simplydone.service.OtpService;
 import com.learnerview.simplydone.service.RegistrationService;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final EmailVerificationRepository emailVerificationRepo;
     private final ApiKeyRepository apiKeyRepo;
     private final EmailService emailService;
+    private final EmailVerificationSettingsService emailVerificationSettingsService;
     private final OtpService otpService;
 
     @Value("${simplydone.registration.otp-validity-minutes:10}")
@@ -42,7 +44,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     // the user's email inbox and is never persisted anywhere.
 
     @Override
-    public void requestOtp(String email, String organizationName) {
+    public RegistrationResponse requestOtp(String email, String organizationName) {
         email = email.trim().toLowerCase();
 
         if (!isValidEmail(email)) {
@@ -52,6 +54,10 @@ public class RegistrationServiceImpl implements RegistrationService {
         var existingVerification = emailVerificationRepo.findFirstByEmailAndVerifiedTrueOrderByCreatedAtAsc(email);
         if (existingVerification.isPresent()) {
             throw new IllegalArgumentException("Email already registered. Please login with your API key.");
+        }
+
+        if (!emailVerificationSettingsService.isEmailVerificationEnabled()) {
+            return createRegistrationWithoutOtp(email, organizationName);
         }
 
         emailVerificationRepo.deleteByEmailAndVerifiedFalseAndOrganizationNameNot(email, "__RECOVERY__");
@@ -76,6 +82,8 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         emailService.sendOtpEmail(email, otp, organizationName); // plaintext only in email
         log.info("OTP requested for email: {}", email);
+
+        return null;
     }
 
     @Override
@@ -84,6 +92,10 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         if (!otpService.isValidOtpFormat(otp)) {
             throw new IllegalArgumentException("Invalid OTP format");
+        }
+
+        if (!emailVerificationSettingsService.isEmailVerificationEnabled()) {
+            throw new IllegalArgumentException("Email verification is disabled. Use the API key returned from signup.");
         }
 
         var verification = emailVerificationRepo
@@ -289,6 +301,45 @@ public class RegistrationServiceImpl implements RegistrationService {
         } catch (NoSuchAlgorithmException e) {
             return "prod_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         }
+    }
+
+    private RegistrationResponse createRegistrationWithoutOtp(String email, String organizationName) {
+        String producerId = generateProducerId(email);
+        String apiKey = "sd_sk_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        Instant now = Instant.now();
+
+        EmailVerificationEntity verification = EmailVerificationEntity.builder()
+                .id(UUID.randomUUID().toString())
+                .email(email)
+                .otpCode(hashOtp(UUID.randomUUID().toString()))
+                .verified(true)
+                .verificationAttempts(0)
+                .organizationName(organizationName)
+                .createdAt(now)
+                .expiresAt(now.plusSeconds(otpValidityMinutes * 60L))
+                .verifiedAt(now)
+                .build();
+        emailVerificationRepo.save(verification);
+
+        ApiKeyEntity keyEntity = ApiKeyEntity.builder()
+                .id(UUID.randomUUID().toString())
+                .apiKey(apiKey)
+                .producer(producerId)
+                .label(organizationName)
+                .admin(false)
+                .active(true)
+                .createdAt(now)
+                .build();
+        apiKeyRepo.save(keyEntity);
+
+        log.info("Email verification disabled; issued API key directly for producer: {}", producerId);
+
+        return RegistrationResponse.builder()
+                .apiKey(apiKey)
+                .producerId(producerId)
+                .organizationName(organizationName)
+                .message("Email verification is disabled. Your API key is ready.")
+                .build();
     }
 
     private String bytesToHex(byte[] bytes) {

@@ -23,7 +23,7 @@ public class SecurityConfig {
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/css/**", "/js/**", "/img/**", "/favicon.ico", "/api/jobs/types", "/actuator/**", "/api/ping").permitAll()
-                .requestMatchers("/", "/jobs", "/admin", "/dlq", "/error").permitAll() // UI shells (auth enforced client-side)
+                .requestMatchers("/", "/jobs", "/admin", "/dlq", "/error").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/jobs/**", "/api/events").authenticated()
                 .anyRequest().authenticated()

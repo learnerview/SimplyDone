@@ -1,6 +1,4 @@
 
-// ====== SIMPLYDONE FRONTEND REWRITE ======
-
 const AUTH_KEY = 'sd_api_key';
 const getApiKey = () => localStorage.getItem(AUTH_KEY);
 const setApiKey = (k) => k ? localStorage.setItem(AUTH_KEY, k) : localStorage.removeItem(AUTH_KEY);
@@ -55,7 +53,6 @@ async function loadStats() {
         const isAdmin = (path === '/admin' || path === '/dlq');
         const d = await api(isAdmin ? '/api/admin/stats' : '/api/jobs/health');
         if (!d?.data) return;
-        // Map all possible stat fields
         const s = d.data;
         const statMap = {
             'stat-high': s.highQueueSize ?? 0,
@@ -71,7 +68,7 @@ async function loadStats() {
             const el = document.getElementById(id);
             if (el) el.textContent = v;
         });
-    } catch (e) { /* silent */ }
+    } catch (e) { }
 }
 
 async function loadJobs() {
@@ -97,7 +94,6 @@ async function loadJobs() {
     } catch (e) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Error loading jobs</td></tr>'; }
 }
 
-// Always refresh stats and jobs after job actions
 async function submitJob() {
     const jobType = document.getElementById('jobType')?.value;
     const priority = document.getElementById('priority')?.value;
@@ -150,10 +146,6 @@ async function clearQueues() {
     } catch (_) {}
 }
 
-// DLQ, Keys, Handlers, SSE, and other helpers remain unchanged for brevity
-// ...existing code...
-
-/* ── DLQ Monitor ──────────────────────────────────── */
 async function loadDlq() {
     const tbody = document.getElementById('dlq-tbody');
     if (!tbody || !getApiKey()) return;
@@ -177,7 +169,6 @@ async function loadDlq() {
     } catch (_) {}
 }
 
-/* ── API Key Registry ─────────────────────────────── */
 async function loadKeys() {
     const tbody = document.getElementById('keys-tbody');
     if (!tbody || !getApiKey()) return;
@@ -203,7 +194,6 @@ async function loadKeys() {
     } catch (_) {}
 }
 
-/* ── Handlers Registry ────────────────────────────── */
 async function loadHandlers() {
     try {
         const d = await api('/api/jobs/types');
@@ -222,7 +212,6 @@ async function loadHandlers() {
     } catch (_) {}
 }
 
-/* ── Actions ──────────────────────────────────────── */
 async function submitJob() {
     const jobType = document.getElementById('jobType')?.value;
     const priority = document.getElementById('priority')?.value;
@@ -284,11 +273,9 @@ async function submitCreateKey() {
         toast('Merchant token issued', 'info');
         document.getElementById('key-modal').style.display = 'none';
 
-        // Reset form
         document.getElementById('newKeyLabel').value = '';
         document.getElementById('newKeyProducer').value = '';
 
-        // Reload keys and offer to copy
         await loadKeys();
         if (d?.data?.apiKey) {
             copyToClipboard(d.data.apiKey);
@@ -301,7 +288,6 @@ async function revokeKey(id) {
     try {
         await api(`/api/admin/keys/${id}`, { method: 'DELETE' });
 
-        // Update UI in-place without full reload
         const badge = document.getElementById(`key-status-${id}`);
         if (badge) {
             badge.textContent = 'REVOKED';
@@ -316,7 +302,6 @@ async function revokeKey(id) {
     } catch (_) {}
 }
 
-/* ── SSE (Live stream) ────────────────────────────── */
 let _sse = null;
 function connectSse() {
     if (_sse || !getApiKey()) return;
@@ -346,7 +331,6 @@ function connectSse() {
     };
 }
 
-/* ── Security & Role Management ──────────────────── */
 async function syncSecurity() {
     if (!getApiKey()) return;
     try {
@@ -357,7 +341,6 @@ async function syncSecurity() {
     } catch (_) {}
 }
 
-/* ── Login ────────────────────────────────────────── */
 async function performLogin() {
     const key = document.getElementById('apiKeyInput')?.value?.trim();
     if (!key) { toast('Please enter your API Key', 'error'); return; }
@@ -375,7 +358,6 @@ async function performLogin() {
     }
 }
 
-/* ── Helpers ──────────────────────────────────────── */
 function escHtml(str) {
     if (str == null) return '';
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -386,7 +368,6 @@ function statusBadge(status) {
     return map[status] ?? 'badge-warn';
 }
 
-/* ── Boot ─────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
     if (window.location.pathname === '/login') return;
 
@@ -403,7 +384,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(loadJobs, 15000);
     if (window.location.pathname === '/dlq') setInterval(loadDlq, 10000);
 
-    // Patch: force stats refresh on admin tab switch
     if (window.location.pathname === '/admin') {
         window.switchTab = function(tab, event) {
             document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');

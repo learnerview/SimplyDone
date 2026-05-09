@@ -15,18 +15,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Deficit Round-Robin scheduler.
- *
- * Each priority has a weight (default HIGH=70, NORMAL=20, LOW=10).
- * Each cycle:
- *   1. Add weight to each priority's deficit counter
- *   2. Pick the priority with the highest deficit that has a ready job
- *   3. Subtract totalWeight from the picked priority's deficit
- *
- * This guarantees weighted fairness: ~70% HIGH, ~20% NORMAL, ~10% LOW.
- * Starvation is impossible — deficit accumulates for idle queues.
- *
- * Time per cycle: O(P) where P = number of priority levels (3 = constant).
+ * Deficit Round-Robin scheduler for worker polling.
+ * Idle lanes accumulate deficit so lower-priority jobs still make progress.
  */
 @Service
 @Profile("worker")
@@ -64,12 +54,10 @@ public class SchedulerEngine {
 
     @Scheduled(fixedDelayString = "${simplydone.scheduler.polling-interval-ms:1000}")
     public void poll() {
-        // Step 1: Add weights to deficit counters
         for (int i = 0; i < priorities.length; i++) {
             deficit[i] += weights[i];
         }
 
-        // Step 2: Pick priority with max deficit that has a ready job
         int bestIdx = -1;
         int bestDeficit = Integer.MIN_VALUE;
 
@@ -80,16 +68,13 @@ public class SchedulerEngine {
             }
         }
 
-        if (bestIdx == -1) return; // no ready jobs
+        if (bestIdx == -1) return;
 
-        // Step 3: Atomic claim from the selected queue
         Optional<String> claimed = queueRepo.claimNextReady(priorities[bestIdx]);
         if (claimed.isEmpty()) return;
 
-        // Step 4: Deduct deficit
         deficit[bestIdx] -= totalWeight;
 
-        // Step 5: CAS claim in DB with lease
         String jobId = claimed.get();
         Instant now = Instant.now();
         String leaseToken = UUID.randomUUID().toString();
@@ -98,7 +83,6 @@ public class SchedulerEngine {
             JobStatus.QUEUED, JobStatus.RUNNING);
         if (updated != 1) return;
 
-        // Step 6: Execute
         jobRepo.findById(jobId).ifPresentOrElse(
                 executor::execute,
                 () -> log.warn("Claimed job {} not found in DB", jobId)

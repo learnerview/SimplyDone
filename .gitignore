@@ -16,3 +16,4 @@ tmpclaude-*
 .settings
 .springBeans
 .sts4-cache
+scripts/demo-data.sh

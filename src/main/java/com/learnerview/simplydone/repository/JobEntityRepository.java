@@ -44,13 +44,10 @@ public interface JobEntityRepository extends JpaRepository<JobEntity, String> {
                           @Param("queuedStatus") JobStatus queuedStatus,
                           @Param("runningStatus") JobStatus runningStatus);
 
-    // Throughput: successful completions since a given instant
     long countByStatusAndCompletedAtAfter(JobStatus status, Instant since);
 
-    // Retry rate: jobs with at least one retry among terminal states
     long countByAttemptCountGreaterThanAndStatusIn(int minAttempts, List<JobStatus> statuses);
 
-    // Latency: fetch recently completed jobs so service can average startedAt→completedAt
     @Query("SELECT j FROM JobEntity j WHERE j.status = :status " +
            "AND j.startedAt IS NOT NULL AND j.completedAt IS NOT NULL " +
            "AND j.completedAt > :since")

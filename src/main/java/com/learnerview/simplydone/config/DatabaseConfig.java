@@ -10,14 +10,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 /**
- * Handles DATABASE_URL from Render/Heroku which comes as:
- *   postgres://user:password@host:port/dbname
- *
- * Spring Boot JDBC needs:
- *   jdbc:postgresql://host:port/dbname  (with user/pass separate)
- *
- * If DATABASE_URL is not set or already starts with jdbc:, falls through to
- * Spring Boot's default DataSource auto-configuration (H2 for local dev).
+ * Builds a DataSource from provider-specific DATABASE_URL formats.
  */
 @Configuration
 public class DatabaseConfig {
@@ -30,7 +23,6 @@ public class DatabaseConfig {
             return buildFromRenderUrl(databaseUrl);
         }
 
-        // Fall through to default (H2 for local dev, or jdbc: URL if provided)
         return properties.initializeDataSourceBuilder()
                 .type(HikariDataSource.class)
                 .build();
@@ -38,10 +30,9 @@ public class DatabaseConfig {
 
     private DataSource buildFromRenderUrl(String databaseUrl) {
         try {
-            // postgres://user:pass@host:port/db  ->  URI parse
-            // Replace postgres:// with postgresql:// for URI parsing
             String normalized = databaseUrl;
             if (normalized.startsWith("postgres://")) {
+                // Render and Heroku use postgres://, but URI parsing expects postgresql://.
                 normalized = "postgresql://" + normalized.substring("postgres://".length());
             }
 
@@ -60,8 +51,6 @@ public class DatabaseConfig {
                 password = userInfo.length > 1 ? userInfo[1] : "";
             }
 
-            // Append SSL only for Render (production PostgreSQL requires SSL)
-            // Render automatically sets RENDER=true in the environment
             String renderEnv = System.getenv("RENDER");
             if (renderEnv != null && !jdbcUrl.contains("sslmode")) {
                 jdbcUrl += "?sslmode=require";
@@ -73,7 +62,6 @@ public class DatabaseConfig {
             ds.setPassword(password);
             ds.setDriverClassName("org.postgresql.Driver");
 
-            // Production connection pool tuning (Render free tier)
             ds.setMaximumPoolSize(5);
             ds.setMinimumIdle(2);
             ds.setConnectionTimeout(20000);

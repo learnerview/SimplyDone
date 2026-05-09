@@ -7,6 +7,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import com.learnerview.simplydone.dto.ApiKeyRequest;
+import com.learnerview.simplydone.dto.ApiKeyResponse;
 
 public interface AdminService {
 
@@ -26,11 +28,9 @@ public interface AdminService {
 
     void clearQueues();
 
-    /* ── API Key Management ────────────────────────────────── */
+    List<ApiKeyResponse> listKeys();
 
-    List<com.learnerview.simplydone.dto.ApiKeyResponse> listKeys();
-
-    com.learnerview.simplydone.dto.ApiKeyResponse createKey(com.learnerview.simplydone.dto.ApiKeyRequest request);
+    ApiKeyResponse createKey(ApiKeyRequest request);
 
     void revokeKey(String keyId);
 }

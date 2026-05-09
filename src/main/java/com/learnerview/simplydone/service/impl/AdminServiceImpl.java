@@ -38,8 +38,6 @@ public class AdminServiceImpl implements AdminService {
     private final SseEmitterService sseEmitterService;
     private final ApiKeyRepository apiKeyRepo;
 
-    /* ── Stats ─────────────────────────────────────────── */
-
     @Override
     @Transactional(readOnly = true)
     public QueueStatsResponse getStats() {
@@ -92,8 +90,6 @@ public class AdminServiceImpl implements AdminService {
                 .build();
     }
 
-    /* ── Jobs ──────────────────────────────────────────── */
-
     @Override
     @Transactional(readOnly = true)
     public Page<JobResponse> listJobs(Pageable pageable) {
@@ -142,8 +138,6 @@ public class AdminServiceImpl implements AdminService {
     public void clearQueues() {
         queueRepo.clearAll();
     }
-
-    /* ── API Key Management (simple INSERT, multiple keys per producer allowed) ── */
 
     @Override
     @Transactional(readOnly = true)

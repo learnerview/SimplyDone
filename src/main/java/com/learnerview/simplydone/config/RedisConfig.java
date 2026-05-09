@@ -12,13 +12,7 @@ import java.net.URI;
 import java.time.Duration;
 
 /**
- * Redis configuration that handles Render's REDIS_URL format.
- *
- * Render provides:
- *   - Free tier:  redis://red-xxx:6379            (no auth, no TLS, internal)
- *   - Paid tier:  rediss://user:pass@host:port     (TLS with auth)
- *
- * Falls back to localhost:6379 for local dev if REDIS_URL is not set.
+ * Configures Redis from REDIS_URL or falls back to local development settings.
  */
 @Configuration
 public class RedisConfig {
@@ -33,7 +27,6 @@ public class RedisConfig {
 
         boolean useSsl = redisUrl.startsWith("rediss://");
 
-        // Normalize rediss:// to redis:// for URI parsing
         String normalized = useSsl ? redisUrl.replaceFirst("rediss://", "redis://") : redisUrl;
         URI uri = URI.create(normalized);
 

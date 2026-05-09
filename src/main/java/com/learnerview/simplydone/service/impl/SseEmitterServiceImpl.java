@@ -13,10 +13,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class SseEmitterServiceImpl implements SseEmitterService {
 
-    // 30-minute client timeout; browser will auto-reconnect via EventSource
     private static final long EMITTER_TIMEOUT_MS = 30 * 60 * 1000L;
 
-    // Map of producer (tenant) -> Set of active emitters
     private final ConcurrentHashMap<String, java.util.Set<SseEmitter>> tenantClients = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
 

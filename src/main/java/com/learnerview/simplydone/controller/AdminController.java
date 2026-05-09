@@ -49,8 +49,6 @@ public class AdminController {
                 .success(true).message("Job re-queued from DLQ").build());
     }
 
-    /* ── API Key Management ────────────────────────────────── */
-
     @GetMapping("/keys")
     public ResponseEntity<ApiResponse<List<ApiKeyResponse>>> listKeys() {
         return ResponseEntity.ok(ApiResponse.<List<ApiKeyResponse>>builder()
@@ -58,7 +56,7 @@ public class AdminController {
     }
 
     @PostMapping("/keys")
-    public ResponseEntity<ApiResponse<ApiKeyResponse >> createKey(@RequestBody ApiKeyRequest request) {
+    public ResponseEntity<ApiResponse<ApiKeyResponse>> createKey(@RequestBody ApiKeyRequest request) {
         return ResponseEntity.status(201).body(ApiResponse.<ApiKeyResponse>builder()
                 .success(true).message("API Key issued").data(adminService.createKey(request)).build());
     }

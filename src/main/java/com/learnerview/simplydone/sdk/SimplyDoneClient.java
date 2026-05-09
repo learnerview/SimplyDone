@@ -11,13 +11,7 @@ import java.time.Duration;
 import java.util.Map;
 
 /**
- * Minimal Java SDK for submitting jobs to SimplyDone.
- * <p>
- * Usage:
- * <pre>
- *   var client = new SimplyDoneClient("http://localhost:8080", "sd_sk_test_user1");
- *   String result = client.submitJob("https://webhook.site/abc", Map.of("hello", "world"));
- * </pre>
+ * Minimal Java client for submitting jobs to SimplyDone.
  */
 public class SimplyDoneClient {
 

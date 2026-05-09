@@ -15,8 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Redis ZSET as min-heap. Score = scheduledAt epoch ms, member = jobId.
- * Atomic claim via WATCH/MULTI/EXEC (optimistic locking / CAS pattern).
+ * Redis-backed priority queue using score-ordered job IDs.
  */
 @Repository
 @Slf4j
@@ -35,8 +34,7 @@ public class RedisQueueRepository implements QueueRepository {
     }
 
     /**
-     * Atomically claim the next ready job. WATCH/MULTI/EXEC = CAS.
-     * If another worker claims it first, EXEC returns null and we skip.
+     * Claims the next ready job with optimistic locking.
      */
     @SuppressWarnings("unchecked")
     public Optional<String> claimNextReady(JobPriority priority) {
@@ -61,7 +59,7 @@ public class RedisQueueRepository implements QueueRepository {
                 List<Object> execResult = ops.exec();
 
                 if (execResult == null || execResult.isEmpty()) {
-                    return Optional.empty(); // lost race
+                    return Optional.empty();
                 }
                 return Optional.of(jobId);
             }

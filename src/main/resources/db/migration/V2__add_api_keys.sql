@@ -8,9 +8,5 @@ CREATE TABLE api_keys (
 );
 
 -- Insert a default admin key
-INSERT INTO api_keys (id, api_key, producer, active, is_admin, created_at)
-VALUES ('11111111-1111-1111-1111-111111111111', 'sd_sk_test_admin', 'test-tenant-admin', true, true, CURRENT_TIMESTAMP);
-
--- Insert a default user key
-INSERT INTO api_keys (id, api_key, producer, active, is_admin, created_at)
-VALUES ('22222222-2222-2222-2222-222222222222', 'sd_sk_test_user1', 'test-tenant-1', true, false, CURRENT_TIMESTAMP);
+-- No default API keys are inserted in migrations to avoid committing secrets.
+-- Create API keys via administrative tooling or runtime provisioning.

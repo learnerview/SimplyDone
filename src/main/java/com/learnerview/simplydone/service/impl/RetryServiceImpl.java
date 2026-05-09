@@ -16,8 +16,7 @@ import java.time.Instant;
 import java.util.Map;
 
 /**
- * Retry with exponential backoff: delay = initialDelay * multiplier^attempt
- * Retry sequence (defaults): 5s → 10s → 20s → DLQ
+ * Handles retry scheduling, backoff, and DLQ transitions.
  */
 @Service
 @Slf4j

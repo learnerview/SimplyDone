@@ -1,0 +1,69 @@
+{
+  "info": {
+    "name": "SimplyDone API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Job",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-API-KEY", "value": "{{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/api/jobs",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jobType\": \"webhook\",\n  \"idempotencyKey\": \"postman-job-1\",\n  \"priority\": \"HIGH\",\n  \"execution\": {\n    \"type\": \"HTTP\",\n    \"endpoint\": \"https://example.com/webhook\"\n  },\n  \"payload\": {\n    \"type\": \"email\"\n  },\n  \"maxAttempts\": 3,\n  \"timeoutSeconds\": 30\n}"
+        }
+      }
+    },
+    {
+      "name": "List Jobs",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-API-KEY", "value": "{{apiKey}}" }
+        ],
+        "url": "{{baseUrl}}/api/jobs?page=0&size=20"
+      }
+    },
+    {
+      "name": "Fetch Metrics",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-API-KEY", "value": "{{adminKey}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/stats"
+      }
+    },
+    {
+      "name": "Inspect DLQ",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-API-KEY", "value": "{{adminKey}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/dlq"
+      }
+    },
+    {
+      "name": "Retry DLQ Job",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-API-KEY", "value": "{{adminKey}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/dlq/{{jobId}}/retry"
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "apiKey", "value": "" },
+    { "key": "adminKey", "value": "" },
+    { "key": "jobId", "value": "" }
+  ]
+}

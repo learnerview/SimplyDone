@@ -13,8 +13,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.UUID;
 
 /**
- * Provides a Server-Sent Events stream for real-time job status updates.
- * Connect from JS: const es = new EventSource('/api/events');
+ * SSE endpoint for tenant-scoped job updates.
  */
 @RestController
 @RequestMapping("/api")

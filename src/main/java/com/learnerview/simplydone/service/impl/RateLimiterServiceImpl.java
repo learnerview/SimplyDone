@@ -11,14 +11,7 @@ import java.time.Duration;
 import java.util.UUID;
 
 /**
- * Sliding Window rate limiter using Redis ZSET.
- *
- * Each user gets a ZSET where:
- *   member = unique request ID
- *   score  = timestamp (epoch ms)
- *
- * On check: evict entries outside window, count remaining, reject if over limit.
- * Time complexity: O(log N) for ZADD/ZREMRANGEBYSCORE, O(1) for ZCARD.
+ * Sliding-window rate limiter backed by Redis sorted sets.
  */
 @Service
 @Slf4j
@@ -42,7 +35,6 @@ public class RateLimiterServiceImpl implements RateLimiterService {
         long now = System.currentTimeMillis();
 
         try {
-            // Evict entries outside the sliding window
             redis.opsForZSet().removeRangeByScore(key, 0, now - windowMs);
 
             Long count = redis.opsForZSet().zCard(key);
@@ -50,7 +42,6 @@ public class RateLimiterServiceImpl implements RateLimiterService {
                 throw new RateLimitExceededException(producer, windowMs / 1000);
             }
 
-            // Record this request
             redis.opsForZSet().add(key, UUID.randomUUID().toString(), now);
             redis.expire(key, Duration.ofMillis(windowMs + 1000));
         } catch (RateLimitExceededException e) {

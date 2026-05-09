@@ -1,175 +1,91 @@
-# SimplyDone: Enterprise Multi-Tenant Job Scheduling Platform
+# SimplyDone
 
-SimplyDone is a high-performance, distributed job scheduling and execution engine designed for multi-tenant SaaS environments. It provides a robust, production-ready backbone for managing background tasks, webhooks, and asynchronous workflows with strict data isolation, weighted priority queuing, and comprehensive fault tolerance.
+## Overview
 
-## Core Value Proposition
+SimplyDone is a multi-tenant background job scheduling and execution system built with Spring Boot. It accepts jobs over HTTP, persists state in PostgreSQL, uses Redis for queueing and rate limiting, and runs execution in a separate worker process.
 
-SimplyDone solves the complexity of reliable task execution in distributed systems by providing:
+## Core Capabilities
 
-- **Zero-Orphan Guarantee**: A background Reaper service ensures that no job is ever lost, even if a worker node crashes mid-execution.
-- **Weighted Fairness**: Prevents low-priority background tasks from starving during high-load bursts of critical operations.
-- **Plug-and-Play Multi-Tenancy**: Built-in tenant isolation allows you to expose task scheduling directly to your end-users or internal teams with zero risk of data leakage.
-- **Cloud-Native Observability**: Real-time event streaming and cluster-wide metrics provide instant visibility into system throughput and health.
+- Priority-based job scheduling with weighted fairness.
+- Tenant-scoped APIs and data access.
+- Retry handling with exponential backoff and a dead letter queue.
+- Lease-based execution safety for running jobs.
+- Live job status updates through Server-Sent Events.
+- Execution tracking for operational review.
 
----
+## Architecture
 
-## Technical Architecture
+The API accepts requests, validates API keys, and stores jobs. Redis holds ready jobs by priority, while PostgreSQL is the source of truth for job state, leases, and execution history. Workers poll Redis, claim ready jobs with an atomic queue operation, and write lease state before executing the job. A reaper process returns orphaned jobs to the queue when a worker disappears.
 
-SimplyDone is designed for high availability and horizontal scalability. The architecture separates the ingestion (API) layer from the execution (Worker) layer, allowing each to be scaled independently based on workload.
+## Execution Flow
 
-```mermaid
-graph TD
-    subgraph Clients
-        P1[Producer A]
-        P2[Producer B]
-        SDK[Java SDK]
-    end
+1. A client submits a job through `POST /api/jobs`.
+2. The API validates the request, applies rate limits, and persists the job.
+3. The job is added to the Redis queue with its priority and scheduled run time.
+4. A worker claims the job and writes a lease in PostgreSQL.
+5. The worker executes the job and records the outcome.
+6. Failures are retried with backoff until the retry limit is reached.
+7. Jobs that lose their lease are re-queued by the recovery loop.
 
-    subgraph "SimplyDone API Node"
-        API[REST Controller]
-        Auth[Identity Engine/RBAC]
-        RL[Rate Limiter]
-    end
+## Reliability Model
 
-    subgraph "Persistence & Queuing"
-        Redis[(Redis - Priority Queues)]
-        DB[(PostgreSQL - Job Store)]
-    end
+- Leases prevent duplicate execution across workers.
+- Retries use exponential backoff to avoid retry storms.
+- Idempotency keys prevent duplicate job creation.
+- Orphan recovery re-queues jobs left in `RUNNING` after a crash.
+- DLQ handling keeps terminal failures visible for manual replay.
 
-    subgraph "SimplyDone Worker Cluster"
-        W1[Worker 1]
-        W2[Worker 2]
-        Reap[Lease Reaper]
-    end
+## API Surface
 
-    P1 & P2 & SDK --> API
-    API --> Auth --> RL
-    RL --> DB
-    RL --> Redis
-    W1 & W2 --> Redis
-    W1 & W2 --> DB
-    Reap --> DB
-    Reap --> Redis
+- `POST /api/jobs` submits a job.
+- `GET /api/jobs` lists jobs for the current tenant.
+- `GET /api/jobs/{id}` returns a single job.
+- `GET /api/jobs/health` reports scheduler and queue health.
+- `GET /api/admin/stats` returns queue and execution metrics.
+- `GET /api/admin/dlq` lists dead-letter jobs.
+- `POST /api/admin/dlq/{id}/retry` re-queues a DLQ job.
+
+Example:
+
+```bash
+curl -X POST http://localhost:8080/api/jobs \
+  -H "X-API-KEY: demo-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payload": {"type": "email"},
+    "nextRunAt": "2026-05-10T10:00:00Z"
+  }'
 ```
 
-### Job Lifecycle
+## Running Locally
 
-SimplyDone manages the complete lifecycle of a task, from submission to terminal state:
+1. Copy `.env.example` to `.env` if you want to override defaults.
+2. Start PostgreSQL, Redis, and the app.
 
-```mermaid
-stateDiagram-v2
-    [*] --> QUEUED: API Submission
-    QUEUED --> RUNNING: Worker Claim (Atomic)
-    RUNNING --> SUCCESS: Execution Complete
-    RUNNING --> RETRY_SCHEDULED: Transient Failure
-    RETRY_SCHEDULED --> QUEUED: Delay Expired
-    RUNNING --> DLQ: Max Retries Exceeded
-    RUNNING --> QUEUED: Reaper Recovery (Worker Crash)
-    SUCCESS --> [*]
-    DLQ --> [*]
-```
-
----
-
-## Technical Implementation Deep Dives
-
-### 1. Weighted Priority (Deficit Round-Robin)
-SimplyDone implements a **Deficit Round-Robin (DRR)** scheduler to manage multiple priority lanes (High, Normal, Low). 
-
-Unlike simple "high-first" schedulers which can cause total starvation of low-priority tasks, DRR uses a weighted deficit counter. If the weights are set to 70 (High), 20 (Normal), and 10 (Low), the system guarantees that over time, 70% of processing power goes to High-priority jobs, while Low-priority jobs are guaranteed at least 10% of throughput, even under maximum load.
-
-### 2. Redis Atomic Claims (Compare-And-Swap)
-To support multi-worker clusters without duplicate execution, SimplyDone uses a Redis-based optimistic locking pattern:
-- **WATCH**: The worker watches the priority queue key in Redis.
-- **MULTI**: Starts a transaction.
-- **EXEC**: Atomically removes the job ID from the queue only if no other worker has modified the queue since the `WATCH` command.
-This ensures **exactly-once claiming** at the queue level before the worker updates the job status in the database.
-
-### 3. Identity Engine & Isolation
-Security is built into the core. Every request to SimplyDone requires an `X-API-KEY`.
-- The **Identity Engine** maps each key to a specific `producer` (Tenant ID).
-- **Data Isolation**: All database queries are scoped by the producer ID. A tenant can never view, modify, or cancel a job belonging to another tenant.
-- **RBAC**: Admin keys have elevated privileges to view cluster-wide metrics and manage the Dead Letter Queue (DLQ).
-
-### 4. Resilience & The Lease Reaper
-When a worker claims a job, it is granted a "lease" (default 30 seconds). If the worker crashes, the job remains in the `RUNNING` state in the database but is no longer in the queue.
-The **Lease Reaper** service periodically scans for jobs that have exceeded their lease timeout without completion or heartbeat. It automatically re-enqueues these "orphaned" jobs, ensuring that every task is ultimately executed.
-
-### 5. Sliding Window Rate Limiting
-SimplyDone uses a Redis-backed **Sliding Window** rate limiter. Unlike fixed-window counters, the sliding window prevents "bursting" at the edge of time windows (e.g., 200 requests at 11:59:59 and another 200 at 12:00:01). It maintains a sub-second log of requests in a Redis `ZSET`, providing smooth and fair rate limiting for all tenants.
-
----
-
-## Developer Guide
-
-### Local Setup
-
-1. **Configure Infrastructure**:
-   SimplyDone requires Redis and PostgreSQL. The provided `docker-compose.yml` initializes these with production-optimized settings.
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
-2. **Run the Application**:
-   The application supports profiles for scaling.
-   - Run both API and Worker: `mvn spring-boot:run`
-   - Run API only: `mvn spring-boot:run -Dspring-boot.run.profiles=api`
-   - Run Worker only: `mvn spring-boot:run -Dspring-boot.run.profiles=worker`
+3. Run the application directly if you are not using Docker.
 
-### API Specification
+   ```bash
+   mvn spring-boot:run
+   ```
 
-#### Submit a Job
-`POST /api/jobs`
+   Actuator exposes `/actuator/health` and `/actuator/metrics`.
 
-**Headers**:
-- `X-API-KEY`: `<your_api_key>`
-- `Content-Type`: `application/json`
+Demo assets live in `scripts/demo-data.sh` and `simplydone.postman_collection.json`.
 
-**Body**:
-```json
-{
-  "jobType": "webhook",
-  "idempotencyKey": "order-12345",
-  "priority": "HIGH",
-  "payload": {
-    "orderId": "ORD-99",
-    "customer": "John Doe"
-  },
-  "execution": {
-    "type": "HTTP",
-    "endpoint": "https://api.yourdomain.com/webhooks/process"
-  },
-  "maxAttempts": 5,
-  "timeoutSeconds": 60,
-  "callbackUrl": "https://api.yourdomain.com/callbacks/job-status"
-}
+## Repository Structure
+
+```text
+simplydone/
+├── src/
+├── scripts/
+├── Dockerfile
+├── docker-compose.yml
+├── simplydone.postman_collection.json
+├── .env.example
+└── README.md
 ```
 
-### SDK Integration (Java)
-
-Include the minimal client in your project to interact with SimplyDone programmatically.
-
-```java
-// Initialize the client
-SimplyDoneClient client = new SimplyDoneClient("https://simplydone.yournetwork.local", "sd_sk_live_12345");
-
-// Define your payload
-Map<String, Object> data = Map.of("userId", 42, "action", "sync_profile");
-
-// Submit the job
-String jobId = client.submitJob("https://internal.service/sync", data);
-```
-
----
-
-## Operational Considerations
-
-### Scaling Strategy
-SimplyDone instances are stateless. You can scale the **API nodes** to handle more incoming requests and the **Worker nodes** to handle higher job throughput. The system relies on Redis and PostgreSQL as the source of truth, allowing you to add or remove nodes on the fly without downtime.
-
-### Dead Letter Queue (DLQ)
-Jobs that fail all retry attempts (including exponential backoff) are moved to the DLQ. Administrators can inspect DLQ jobs via the dashboard or API to diagnose issues and manually trigger retries once downstream systems are restored.
-
-## License
-
-Copyright 2024 SimplyDone. Licensed under the MIT License.

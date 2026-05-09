@@ -22,7 +22,8 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/css/**", "/js/**", "/img/**", "/favicon.ico", "/api/jobs/types", "/actuator/**", "/api/ping").permitAll()
+                .requestMatchers("/login", "/signup", "/css/**", "/js/**", "/img/**", "/favicon.ico", "/api/jobs/types", "/actuator/**", "/api/ping").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/", "/jobs", "/admin", "/dlq", "/error").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/jobs/**", "/api/events").authenticated()

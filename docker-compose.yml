@@ -33,11 +33,17 @@ services:
       - "8080:8080"
     environment:
       PORT: ${PORT:-8080}
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-api,worker}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod,api,worker}
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/simplydone}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-postgres}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      ADMIN_INITIAL_SECRET: ${ADMIN_INITIAL_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy

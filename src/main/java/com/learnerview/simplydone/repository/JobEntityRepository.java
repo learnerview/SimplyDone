@@ -1,6 +1,7 @@
 package com.learnerview.simplydone.repository;
 
 import com.learnerview.simplydone.entity.JobEntity;
+import com.learnerview.simplydone.model.JobPriority;
 import com.learnerview.simplydone.model.JobStatus;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.domain.Page;
@@ -26,11 +27,15 @@ public interface JobEntityRepository extends JpaRepository<JobEntity, String> {
     List<JobEntity> findTop100ByStatusAndVisibleAtBeforeOrderByVisibleAtAsc(JobStatus status, Instant before);
     List<JobEntity> findTop100ByStatusAndNextRunAtLessThanEqualOrderByNextRunAtAsc(JobStatus status, Instant now);
     long countByStatus(JobStatus status);
+       long countByStatusAndPriority(JobStatus status, JobPriority priority);
     long countByProducerAndStatus(String producer, JobStatus status);
     List<JobEntity> findTop20ByOrderByCreatedAtDesc();
     List<JobEntity> findTop20ByProducerOrderByCreatedAtDesc(String producer);
     Optional<JobEntity> findByProducerAndIdempotencyKey(String producer, String idempotencyKey);
     Optional<JobEntity> findByProducerAndId(String producer, String id);
+       List<JobEntity> findTop100ByStatusAndPriorityAndNextRunAtLessThanEqualOrderByNextRunAtAsc(JobStatus status,
+                                                                                                                                                             JobPriority priority,
+                                                                                                                                                             Instant now);
 
     @Modifying
     @Transactional

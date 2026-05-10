@@ -34,7 +34,11 @@ public class WorkerMaintenanceService {
         for (JobEntity job : due) {
             job.setStatus(JobStatus.QUEUED);
             jobRepo.save(job);
-            queueRepo.enqueue(job.getId(), job.getPriority(), job.getNextRunAt().toEpochMilli());
+            try {
+                queueRepo.enqueue(job.getId(), job.getPriority(), job.getNextRunAt().toEpochMilli());
+            } catch (RuntimeException e) {
+                log.warn("Redis queue unavailable while promoting retry for job {}: {}", job.getId(), e.getMessage());
+            }
         }
     }
 

@@ -25,6 +25,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.dao.DataAccessException;
 
 @Service
 @Profile("api")
@@ -52,9 +53,7 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
             validateHttpUrl(req.getCallbackUrl(), "callbackUrl");
         }
 
-        long totalDepth = queueRepo.queueSize(JobPriority.HIGH)
-                + queueRepo.queueSize(JobPriority.NORMAL)
-                + queueRepo.queueSize(JobPriority.LOW);
+        long totalDepth = getTotalQueueDepthWithFallback();
         if (totalDepth >= props.getQueue().getMaxDepth()) {
             throw new QueueFullException(props.getQueue().getMaxDepth());
         }
@@ -92,7 +91,11 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
                 .build();
 
         jobRepo.save(job);
-        queueRepo.enqueue(jobId, priority, nextRunAt.toEpochMilli());
+        try {
+            queueRepo.enqueue(jobId, priority, nextRunAt.toEpochMilli());
+        } catch (RuntimeException e) {
+            log.warn("Redis queue unavailable for job {}, keeping DB fallback only: {}", jobId, e.getMessage());
+        }
         log.info("Job submitted: {} type={} priority={}", jobId, req.getJobType(), priority);
 
         sseEmitterService.broadcast(producer, "JOB_CREATED", Map.of(
@@ -131,7 +134,11 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
         JobEntity job = jobRepo.findByProducerAndId(producer, jobId)
                 .orElseThrow(() -> new JobNotFoundException(jobId));
         if (job.getStatus() == JobStatus.QUEUED) {
-            queueRepo.remove(jobId, job.getPriority());
+            try {
+                queueRepo.remove(jobId, job.getPriority());
+            } catch (RuntimeException e) {
+                log.warn("Redis queue unavailable while cancelling job {}: {}", jobId, e.getMessage());
+            }
             job.setStatus(JobStatus.CANCELLED);
             job.setVisibleAt(null);
             job.setLeaseOwner(null);
@@ -176,9 +183,24 @@ public class JobSubmissionServiceImpl implements JobSubmissionService {
         job.setCompletedAt(null);
         job.setResult(null);
         jobRepo.save(job);
-        queueRepo.enqueue(jobId, job.getPriority(), Instant.now().toEpochMilli());
+        try {
+            queueRepo.enqueue(jobId, job.getPriority(), Instant.now().toEpochMilli());
+        } catch (RuntimeException e) {
+            log.warn("Redis queue unavailable while retrying DLQ job {}: {}", jobId, e.getMessage());
+        }
         sseEmitterService.broadcast(producer, "JOB_UPDATE",
                 Map.of("id", jobId, "status", "QUEUED", "result", "Retried from DLQ"));
+    }
+
+    private long getTotalQueueDepthWithFallback() {
+        try {
+            return queueRepo.queueSize(JobPriority.HIGH)
+                    + queueRepo.queueSize(JobPriority.NORMAL)
+                    + queueRepo.queueSize(JobPriority.LOW);
+        } catch (RuntimeException e) {
+            log.warn("Redis queue depth check failed, using DB fallback: {}", e.getMessage());
+            return jobRepo.countByStatus(JobStatus.QUEUED);
+        }
     }
 
     private void validateHttpUrl(String value, String fieldName) {

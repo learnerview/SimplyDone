@@ -2,6 +2,7 @@ package com.learnerview.simplydone.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.data.redis.LettuceClientConfigurationBuilderCustomizer;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
@@ -16,6 +17,15 @@ import java.time.Duration;
  */
 @Configuration
 public class RedisConfig {
+
+    /**
+     * Increase the Lettuce command timeout slightly to tolerate brief Redis hiccups.
+     * This is a short-term mitigation; long-term fixes should address Redis stability.
+     */
+    @Bean
+    public LettuceClientConfigurationBuilderCustomizer lettuceCustomizer() {
+        return builder -> builder.commandTimeout(Duration.ofSeconds(5));
+    }
 
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {

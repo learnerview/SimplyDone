@@ -2,6 +2,8 @@ package com.learnerview.simplydone.repository;
 
 import com.learnerview.simplydone.config.SchedulerProperties;
 import com.learnerview.simplydone.model.JobPriority;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
@@ -29,6 +31,8 @@ public class RedisQueueRepository implements QueueRepository {
         this.queuePrefix = props.getScheduler().getQueuePrefix();
     }
 
+    @Retry(name = "redisQueue")
+    @CircuitBreaker(name = "redisQueue")
     public void enqueue(String jobId, JobPriority priority, long scheduledAtEpochMs) {
         redis.opsForZSet().add(queueKey(priority), jobId, scheduledAtEpochMs);
     }
@@ -37,6 +41,8 @@ public class RedisQueueRepository implements QueueRepository {
      * Claims the next ready job with optimistic locking.
      */
     @SuppressWarnings("unchecked")
+    @Retry(name = "redisQueue")
+    @CircuitBreaker(name = "redisQueue")
     public Optional<String> claimNextReady(JobPriority priority) {
         String key = queueKey(priority);
         long now = System.currentTimeMillis();
@@ -66,15 +72,21 @@ public class RedisQueueRepository implements QueueRepository {
         });
     }
 
+    @Retry(name = "redisQueue")
+    @CircuitBreaker(name = "redisQueue")
     public void remove(String jobId, JobPriority priority) {
         redis.opsForZSet().remove(queueKey(priority), jobId);
     }
 
+    @Retry(name = "redisQueue")
+    @CircuitBreaker(name = "redisQueue")
     public long queueSize(JobPriority priority) {
         Long size = redis.opsForZSet().zCard(queueKey(priority));
         return size != null ? size : 0;
     }
 
+    @Retry(name = "redisQueue")
+    @CircuitBreaker(name = "redisQueue")
     public void clearQueue(JobPriority priority) {
         redis.delete(queueKey(priority));
     }

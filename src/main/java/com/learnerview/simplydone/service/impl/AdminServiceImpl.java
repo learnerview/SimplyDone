@@ -64,10 +64,23 @@ public class AdminServiceImpl implements AdminService {
                 .mapToLong(j -> j.getCompletedAt().toEpochMilli() - j.getStartedAt().toEpochMilli())
                 .average().orElse(0.0);
 
+        long highQueueSize;
+        long normalQueueSize;
+        long lowQueueSize;
+        try {
+            highQueueSize = queueRepo.queueSize(JobPriority.HIGH);
+            normalQueueSize = queueRepo.queueSize(JobPriority.NORMAL);
+            lowQueueSize = queueRepo.queueSize(JobPriority.LOW);
+        } catch (RuntimeException e) {
+            highQueueSize = jobRepo.countByStatusAndPriority(JobStatus.QUEUED, JobPriority.HIGH);
+            normalQueueSize = jobRepo.countByStatusAndPriority(JobStatus.QUEUED, JobPriority.NORMAL);
+            lowQueueSize = jobRepo.countByStatusAndPriority(JobStatus.QUEUED, JobPriority.LOW);
+        }
+
         return QueueStatsResponse.builder()
-                .highQueueSize(queueRepo.queueSize(JobPriority.HIGH))
-                .normalQueueSize(queueRepo.queueSize(JobPriority.NORMAL))
-                .lowQueueSize(queueRepo.queueSize(JobPriority.LOW))
+            .highQueueSize(highQueueSize)
+            .normalQueueSize(normalQueueSize)
+            .lowQueueSize(lowQueueSize)
                 .totalQueued(jobRepo.countByStatus(JobStatus.QUEUED))
                 .totalRunning(jobRepo.countByStatus(JobStatus.RUNNING))
                 .totalSuccess(success)
@@ -132,14 +145,22 @@ public class AdminServiceImpl implements AdminService {
         job.setCompletedAt(null);
         job.setResult(null);
         jobRepo.save(job);
-        queueRepo.enqueue(jobId, job.getPriority(), Instant.now().toEpochMilli());
+        try {
+            queueRepo.enqueue(jobId, job.getPriority(), Instant.now().toEpochMilli());
+        } catch (RuntimeException e) {
+            // Leave the job queued in the DB; the worker will pick it up via DB fallback.
+        }
         sseEmitterService.broadcast(job.getProducer(), "JOB_UPDATE",
                 Map.of("id", jobId, "status", "QUEUED", "result", "Retried from DLQ"));
     }
 
     @Override
     public void clearQueues() {
-        queueRepo.clearAll();
+        try {
+            queueRepo.clearAll();
+        } catch (RuntimeException e) {
+            // Queue state is recoverable from DB; admin can retry when Redis is back.
+        }
     }
 
     @Override

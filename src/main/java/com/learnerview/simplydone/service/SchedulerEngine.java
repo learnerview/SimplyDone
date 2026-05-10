@@ -1,6 +1,7 @@
 package com.learnerview.simplydone.service;
 
 import com.learnerview.simplydone.config.SchedulerProperties;
+import com.learnerview.simplydone.entity.JobEntity;
 import com.learnerview.simplydone.model.JobPriority;
 import com.learnerview.simplydone.model.JobStatus;
 import com.learnerview.simplydone.repository.JobEntityRepository;
@@ -11,6 +12,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -58,6 +62,15 @@ public class SchedulerEngine {
             deficit[i] += weights[i];
         }
 
+        try {
+            pollRedisQueue();
+        } catch (RuntimeException e) {
+            log.warn("Redis queue unavailable, using DB fallback: {}", e.getMessage());
+            pollDatabaseQueue();
+        }
+    }
+
+    private void pollRedisQueue() {
         int bestIdx = -1;
         int bestDeficit = Integer.MIN_VALUE;
 
@@ -74,13 +87,36 @@ public class SchedulerEngine {
         if (claimed.isEmpty()) return;
 
         deficit[bestIdx] -= totalWeight;
+        executeClaimedJob(claimed.get());
+    }
 
-        String jobId = claimed.get();
+    private void pollDatabaseQueue() {
+        List<Integer> order = Arrays.stream(new int[]{0, 1, 2})
+                .boxed()
+                .sorted(Comparator.comparingInt((Integer i) -> deficit[i]).reversed())
+                .toList();
+
+        Instant now = Instant.now();
+        for (Integer idx : order) {
+            List<JobEntity> dueJobs = jobRepo
+                    .findTop100ByStatusAndPriorityAndNextRunAtLessThanEqualOrderByNextRunAtAsc(
+                            JobStatus.QUEUED, priorities[idx], now);
+            if (dueJobs.isEmpty()) {
+                continue;
+            }
+
+            deficit[idx] -= totalWeight;
+            executeClaimedJob(dueJobs.get(0).getId());
+            return;
+        }
+    }
+
+    private void executeClaimedJob(String jobId) {
         Instant now = Instant.now();
         String leaseToken = UUID.randomUUID().toString();
         Instant visibleUntil = now.plusSeconds(leaseTimeoutSeconds);
         int updated = jobRepo.claimForExecution(jobId, leaseToken, workerId, visibleUntil, now,
-            JobStatus.QUEUED, JobStatus.RUNNING);
+                JobStatus.QUEUED, JobStatus.RUNNING);
         if (updated != 1) return;
 
         jobRepo.findById(jobId).ifPresentOrElse(

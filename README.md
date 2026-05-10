@@ -1,220 +1,244 @@
 # SimplyDone
 
-## Overview
+SimplyDone is a high-performance, multi-tenant background job scheduling and execution system built with Spring Boot. It provides a reliable bridge for asynchronous processing across microservices, ensuring that long-running or distributed tasks are executed with priority-aware fairness, strict isolation, and guaranteed delivery.
 
-SimplyDone is a multi-tenant background job scheduling and execution system built with Spring Boot. It accepts jobs over HTTP, persists state in PostgreSQL, uses Redis for queueing and rate limiting, and runs execution in a separate worker process. It is fully open source — host it yourself and integrate into your microservices.
+## Why SimplyDone
 
-## Core Capabilities
+Most distributed architectures struggle with reliable background processing. SimplyDone addresses these core challenges:
 
-- Priority-based job scheduling with weighted fairness (HIGH / NORMAL / LOW).
-- Tenant-scoped APIs and data access via API keys.
-- Retry handling with exponential backoff and a dead letter queue (DLQ).
-- Organization-level DLQ access — tenants can view and retry their own failed jobs.
-- Lease-based execution safety for running jobs.
-- Live job status updates through Server-Sent Events (SSE).
-- HMAC-SHA256 webhook signatures for verifying outbound request authenticity.
-- Interactive API documentation via Swagger UI.
-- Standardized error responses (RFC 7807 Problem Details).
+- **Fairness at Scale**: Uses a **Deficit Round-Robin (DRR)** scheduler to ensure that high-priority transactional tasks (like payment confirmations) are never starved by low-priority bulk tasks (like analytics exports).
+- **Lease-Based Safety**: Jobs are claimed with an atomic lease. If a worker process crashes mid-execution, the lease expires and the job is automatically recovered, preventing silent failures.
+- **Tenant Isolation**: Designed for SaaS architectures. Every job, metric, and log is scoped to a "Producer ID" associated with an API Key.
+- **Zero-Polling Visibility**: Integrated **Server-Sent Events (SSE)** provide a live, real-time feed of job state transitions to your dashboard or monitoring tools.
+- **Webhook Authenticity**: Every execution request is signed with **HMAC-SHA256**, allowing your services to verify that incoming tasks originated from SimplyDone.
 
-## Architecture
+---
 
-The API accepts requests, validates API keys, and stores jobs. Redis holds ready jobs by priority, while PostgreSQL is the source of truth for job state, leases, and execution history. Workers poll Redis, claim ready jobs with an atomic queue operation, and write lease state before executing the job. A reaper process returns orphaned jobs to the queue when a worker disappears.
+## Getting Started: The Workflow
 
-## Execution Flow
+### 1. Registration
+Initiate your account by visiting the `/signup` page or using the Auth API.
+- **Request OTP**: Submit your email to receive a 6-digit verification code.
+- **Verify & Onboard**: Enter the OTP to receive your permanent **API Key** and **Producer ID**.
 
-1. A client submits a job through `POST /api/jobs`.
-2. The API validates the request, applies rate limits, and persists the job.
-3. The job is added to the Redis queue with its priority and scheduled run time.
-4. A worker claims the job and writes a lease in PostgreSQL.
-5. The worker dispatches an HTTP POST to the client's configured endpoint, attaching an `X-SimplyDone-Signature` HMAC header for webhook verification.
-6. Failures are retried with exponential backoff until the retry limit is reached.
-7. Jobs that exceed retries are moved to the DLQ for manual review.
-8. Jobs that lose their lease are re-queued by the recovery loop.
-
-## Webhook Signature Verification
-
-When SimplyDone executes a job, it computes an HMAC-SHA256 hash of the JSON payload using the organization's API key and sends it in the `X-SimplyDone-Signature` header (prefixed with `sha256=`). Clients should recompute the hash on their end and compare to verify the request originated from SimplyDone.
-
-## API Surface
-
-### Authentication Endpoints (public)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/auth/signup/request-otp` | Send a verification code to the provided email |
-| `POST` | `/api/auth/signup/verify-otp` | Verify the code and receive an API key |
-| `POST` | `/api/auth/recover/request-otp` | Send a recovery code to a registered email |
-| `POST` | `/api/auth/recover/verify-otp` | Verify the code, revoke all old keys, and receive a new one |
-
-### Job Endpoints (authenticated)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/jobs` | Submit a new job |
-| `GET` | `/api/jobs` | List jobs for the current tenant |
-| `GET` | `/api/jobs/{id}` | Get a single job |
-| `DELETE` | `/api/jobs/{id}` | Cancel a job |
-| `GET` | `/api/jobs/health` | Queue and execution health |
-| `GET` | `/api/jobs/dlq` | List DLQ jobs (scoped to tenant; admins see all) |
-| `POST` | `/api/jobs/dlq/{id}/retry` | Re-queue a DLQ job |
-
-### Admin Endpoints (ROLE_ADMIN only)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/admin/stats` | Cluster-wide queue and execution metrics |
-| `GET` | `/api/admin/dlq` | List all DLQ jobs (system-wide) |
-| `POST` | `/api/admin/dlq/{id}/retry` | Re-queue any DLQ job |
-| `GET` | `/api/admin/keys` | List all API keys (values are masked; full key shown only at creation) |
-| `POST` | `/api/admin/keys` | Issue a new API key |
-| `DELETE` | `/api/admin/keys/{id}` | Revoke an API key |
-| `DELETE` | `/api/admin/queues` | Flush all Redis queues |
-
-### Interactive API Docs
-
-Swagger UI is available at `/swagger-ui.html`. Use the `X-API-KEY` header to authenticate. In Swagger UI click "Authorize" and provide the header value like `sd_sk_yourkey`.
-
-### Example
-
+### 2. Submitting a Job
+Once you have an API key, you can submit jobs via HTTP.
 ```bash
 curl -X POST http://localhost:8080/api/jobs \
-  -H "X-API-KEY: your-api-key" \
+  -H "X-API-KEY: sd_sk_live_..." \
   -H "Content-Type: application/json" \
   -d '{
-    "jobType": "external",
-    "idempotencyKey": "unique-key-123",
-    "priority": "NORMAL",
-    "execution": { "type": "HTTP", "endpoint": "https://api.yourdomain.com/webhook" },
-    "payload": {"type": "email", "to": "user@example.com"},
-    "maxAttempts": 3,
-    "timeoutSeconds": 30
+    "jobType": "order_processing",
+    "idempotencyKey": "order_789",
+    "priority": "HIGH",
+    "execution": {
+      "type": "HTTP",
+      "endpoint": "https://api.yourdomain.com/webhooks/process"
+    },
+    "payload": { "orderId": "789", "customer": "Alice" }
   }'
 ```
 
-## Security
+### 3. Monitoring
+Use the **Dashboard** at `/dashboard` to see your jobs move from `QUEUED` to `RUNNING` and finally `SUCCESS` or `FAILED`. Failed jobs move to the **DLQ** after exhausting retries.
 
-- Every API request must include a valid `X-API-KEY` header.
-- Admin endpoints additionally require the key to carry the `ADMIN` role.
-- Jobs are scoped to the submitting tenant — organizations can only access their own data.
-- OTPs are SHA-256 hashed before storage. A database breach does not expose usable codes.
-- Admin key listings return masked values (e.g. `sd_sk_****ab3f`). The full key is shown once at creation time only.
-- Actuator is restricted to `/actuator/health` and `/actuator/metrics`. Sensitive endpoints cannot be accidentally exposed.
-- If you lose your API key, visit `/recover`. Provide your registered email, verify the OTP, and a new key is issued. All previous keys for the account are revoked immediately.
+---
 
-## Prerequisites
+## Core Concepts
 
-- Java 17+ (or the JDK version declared in `pom.xml`).
-- Maven 3.6+ for building and running with `mvn`.
-- Docker Engine and Docker Compose (v2+) if using the included compose setup.
+### Priority Queues
+SimplyDone manages three internal queues:
+- **HIGH**: Used for time-sensitive, user-facing actions.
+- **NORMAL**: The default for standard background tasks.
+- **LOW**: Used for bulk processing, migrations, or non-urgent cleanup.
+The scheduler distributes worker capacity based on weights (default: 70% High, 20% Normal, 10% Low).
 
-## Database migrations and deployment notes
+### Idempotency
+To prevent duplicate job creation due to network retries, SimplyDone requires an `idempotencyKey`. If you submit the same key twice within the same producer scope, the API will return the existing job status rather than creating a new one.
 
-- Migrations are applied with Flyway on application startup. Ensure the configured PostgreSQL database is reachable by the app before first run.
-- To run migrations manually (if desired) use the Maven Flyway plugin or start the app once with the database accessible so Flyway can apply migrations.
+### The Lease Model
+When a worker claims a job, it sets a `lease_owner` and a `visible_at` timestamp. 
+- While the lease is active, other workers cannot see the job.
+- If the worker fails to update the job state before `visible_at` (e.g., due to a crash), the job becomes visible again and is picked up by a recovery reaper.
 
-## Environment variables
+### Retry & Backoff
+Failures trigger automatic retries with **Exponential Backoff**:
+- **Initial Delay**: 5 seconds (default)
+- **Multiplier**: 2.0 (e.g., 5s, 10s, 20s...)
+- **Max Attempts**: Configurable per job (default: 3)
 
-The project includes an example file at `.env.example`. Critical variables to review before boot:
+---
 
-- `ADMIN_INITIAL_SECRET` — used to bootstrap an admin key; store this securely (Secrets Manager, Vault, or K8s Secrets).
-- `MAIL_USERNAME` / `MAIL_PASSWORD` — SMTP credentials (for signup/recovery emails). Prefer a service account or provider-specific API key (SendGrid, SES) rather than a personal mailbox.
+## API Reference
 
-
-## Running locally (quickstart)
-
-1. Create a `.env` file at the project root if you want to override defaults. Set `ADMIN_INITIAL_SECRET` to bootstrap the admin API key.
-2. If you want outbound email for signup and recovery, set `MAIL_USERNAME` and `MAIL_PASSWORD` to an appropriate SMTP credential or API key.
-3. Start PostgreSQL, Redis, and the app with Docker Compose:
-
-```bash
-docker compose up -d
+### Standard Response Envelope
+All API responses follow this consistent structure:
+```json
+{
+  "success": true,
+  "message": "Action completed",
+  "data": { ... },
+  "timestamp": "2026-05-10T10:00:00Z"
+}
 ```
 
-Note: older Docker CLI versions use the `docker-compose` command (hyphen). Use whichever matches your environment.
+### Authentication APIs
 
-4. Visit `http://localhost:8080` for the public landing page, `http://localhost:8080/signup` for self-service registration, or `http://localhost:8080/login` to authenticate.
+#### Request Signup OTP
+`POST /api/auth/signup/request-otp`
+- **Body**: `{ "email": "user@org.com", "organizationName": "Acme Corp" }`
+- **Note**: Sends a code to the email. Expires in 10 minutes.
 
-5. Run the application directly if you are not using Docker:
+#### Verify OTP & Get Key
+`POST /api/auth/signup/verify-otp`
+- **Body**: `{ "email": "user@org.com", "otp": "123456" }`
+- **Returns**: Your permanent `apiKey` and `producerId`. **Keep these secret.**
 
-```bash
-mvn spring-boot:run
+### Job Management APIs
+
+#### Submit Job
+`POST /api/jobs`
+- **Headers**: `X-API-KEY: <your_key>`
+- **Body Fields**:
+    - `jobType` (String, required): Category of your job.
+    - `idempotencyKey` (String, required): Unique identifier for this job instance.
+    - `priority` (Enum: `HIGH`, `NORMAL`, `LOW`, optional): Defaults to `NORMAL`.
+    - `execution` (Object, required):
+        - `type`: Only `HTTP` is currently supported.
+        - `endpoint`: The URL SimplyDone will POST the payload to.
+    - `payload` (Object, optional): Data passed to your endpoint.
+    - `nextRunAt` (ISO8601, optional): Schedule for the future.
+    - `maxAttempts` (Integer, optional): Max retries.
+
+#### List Jobs
+`GET /api/jobs?page=0&size=20`
+- Returns a paginated list of jobs for your organization.
+
+#### Get Job Detail
+`GET /api/jobs/{id}`
+- Returns full job status, result body, and execution logs.
+
+#### Cancel Job
+`DELETE /api/jobs/{id}`
+- Only `QUEUED` jobs can be cancelled.
+
+#### Queue Health
+`GET /api/jobs/health`
+- Returns throughput, success rates, and current queue depths for your organization.
+
+---
+
+## Webhook Signature Verification
+
+SimplyDone signs every execution request using your API key. To ensure the request is authentic, you should verify the `X-SimplyDone-Signature` header.
+
+### Verification Logic
+1. Extract the header `X-SimplyDone-Signature`. It looks like `sha256=<hex_digest>`.
+2. Compute the **HMAC-SHA256** of the raw request body using your **API Key** as the secret.
+3. Compare your computed digest with the hex digest in the header using a **constant-time comparison** function.
+
+### Python Example
+```python
+import hmac
+import hashlib
+
+def verify_simplydone_webhook(request_body, signature_header, api_key):
+    if not signature_header.startswith("sha256="):
+        return False
+    received_hash = signature_header[7:]
+    computed_hash = hmac.new(
+        api_key.encode('utf-8'),
+        request_body.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(received_hash, computed_hash)
 ```
 
-Actuator exposes `/actuator/health` and `/actuator/metrics`.
+### Node.js Example
+```javascript
+const crypto = require('crypto');
 
-## Testing and developer tips
-
-- Run unit/integration tests with:
-
-```bash
-mvn test
+function verifySimplyDoneWebhook(requestBody, signatureHeader, apiKey) {
+    if (!signatureHeader.startsWith('sha256=')) return false;
+    const receivedHash = signatureHeader.substring(7);
+    const computedHash = crypto
+        .createHmac('sha256', apiKey)
+        .update(requestBody)
+        .digest('hex');
+    return crypto.timingSafeEqual(
+        Buffer.from(receivedHash),
+        Buffer.from(computedHash)
+    );
+}
 ```
 
-- Use `scripts/demo-data.sh` to populate test tenants and API keys for local development.
+---
+
+## Configuration (Environment Variables)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server listening port | `8080` |
+| `SPRING_PROFILES_ACTIVE` | Active roles (`api`, `worker`, `prod`) | `prod,api,worker` |
+| `SPRING_DATASOURCE_URL` | PostgreSQL JDBC URL | Required |
+| `REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
+| `MAIL_HOST` | SMTP server host | `smtp.gmail.com` |
+| `MAIL_USERNAME` | SMTP username | Optional |
+| `MAIL_PASSWORD` | SMTP password | Optional |
+| `ADMIN_INITIAL_SECRET` | Secret to bootstrap the first admin key | Required for setup |
+| `APP_URL` | Base URL of SimplyDone (for emails) | `http://localhost:8080` |
+
+---
+
+## Project Structure
+
+```text
+src/main/java/com/learnerview/simplydone/
+├── config/         # Security, Redis, and Web configurations
+├── controller/     # API Controllers (Auth, Jobs, Admin, SSE)
+├── dto/            # Data Transfer Objects for API contracts
+├── entity/         # Database Entities (Job, ApiKey, Logs)
+├── mapper/         # Entity-DTO mapping logic
+├── repository/     # Spring Data Repositories (Postgres & Redis)
+├── service/        # Business Logic, DRR Scheduler, and Execution Engine
+├── exception/      # Global Exception Handling (RFC 7807)
+└── sdk/            # Minimal client and signature verification logic
+```
+
+---
+
+---
 
 ## Troubleshooting
 
-- "Port already in use": stop any process on `:8080` or change `server.port` via environment variable.
-- "Database migrations failing": ensure Postgres URL and credentials are correct and the Flyway schema history table is writable.
-- Missing `ADMIN_INITIAL_SECRET`: bootstrap will still work if you create an admin key manually, but the initial provisioning flow expects this value for unattended setups.
+- **"Port already in use"**: SimplyDone defaults to port `8080`. You can change this by setting the `PORT` environment variable or overriding `server.port` in your properties.
+- **Database Migrations Failing**: Ensure your PostgreSQL database is reachable and the credentials are correct. Flyway requires a schema history table, so ensure the database user has sufficient permissions.
+- **Job Stuck in `RUNNING`**: This usually happens if a worker process crashes mid-job. The **Lease Reaper** automatically detects orphaned jobs and re-queues them after the lease expires (default 30s). Check worker logs for underlying crash causes.
+- **`X-API-KEY` Rejected**: Every request must include the exact header name `X-API-KEY`. If you've lost your key, use the `/recover` self-service flow.
+- **Webhooks Failing with 403**: This often indicates a signature mismatch. Ensure you are computing the HMAC-SHA256 of the **raw, unparsed** JSON request body.
+- **Missing `ADMIN_INITIAL_SECRET`**: If you don't set this, the first admin key cannot be bootstrapped during unattended setup. You can still create an admin key manually in the database if needed.
+- **Emails Not Sending**: Verify your `MAIL_HOST`, `MAIL_PORT`, and credentials. SimplyDone disables mail health checks to prevent application boot delays when your SMTP provider is slow or unreachable.
 
-## Links and useful files
+---
 
-- Postman collection: `simplydone.postman_collection.json` (import to test endpoints).
-- Demo script: `scripts/demo-data.sh` — creates sample tenants and keys for local testing.
-- Dockerfile and `docker-compose.yml` — container images and composed services for quick local staging.
-
-## Changes in this update
-
-- Added prerequisites, migration notes, env guidance, Swagger auth hint, test/run commands, and troubleshooting tips.
-
-
-## Reliability Model
-
-- Leases prevent duplicate execution across workers.
-- Retries use exponential backoff to avoid retry storms.
-- Idempotency keys prevent duplicate job creation.
-- Job execution targets must be reachable HTTP/HTTPS endpoints that return 2xx responses; non-2xx responses, timeouts, and unreachable hosts will retry and eventually move to the DLQ.
-- Cancelled jobs are tracked separately from failures so operational reporting is clearer.
-- Orphan recovery re-queues jobs left in `RUNNING` after a crash.
-- DLQ handling keeps terminal failures visible for manual replay.
-- CircuitBreaker and Bulkhead (Resilience4j) protect against cascade failures during HTTP execution.
- 
-
-## Repository Structure
-
-```text
-simplydone/
-├── src/
-├── scripts/
-├── Dockerfile
-├── docker-compose.yml
-├── simplydone.postman_collection.json
-├── .env.example
-└── README.md
-```
 ## Screenshots
 
 Landing page:
-
 ![Landing page](images/image.png)
 
-OpenAPI/ Swagger API:
-
+OpenAPI / Swagger API:
 ![OpenAPI](images/image-1.png)
 
-Login Page:
-
-![Login Page](images/image-2.png)
-
 Dashboard:
-
 ![Dashboard](images/image-4.png)
 
 Admin Console:
-
 ![Admin Console](images/image-5.png)
 
 DLQ:
-
 ![DLQ](images/image-6.png)
+
+---
+
+## License
+MIT
